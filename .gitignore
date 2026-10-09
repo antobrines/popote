@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.angular/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+# Copies remplies des modèles (dokploy.env…) : jamais dans le dépôt.
+*.env
+npm-debug.log*
+.DS_Store

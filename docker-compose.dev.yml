@@ -1,0 +1,18 @@
+# Développement : seulement MongoDB dans Docker, l'API et la PWA tournent avec npm (rechargement à chaud).
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   → MONGODB_URI=mongodb://localhost:27017 dans apps/api/.env
+#   npm run dev:api   (http://localhost:3000/api, Swagger sur /api/docs)
+#   npm run dev:web   (http://localhost:4200, /api relayé vers le port 3000)
+
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:27017:27017'
+    volumes:
+      - mongo-dev-data:/data/db
+
+volumes:
+  mongo-dev-data:

@@ -1,0 +1,74 @@
+# Popote — déploiement avec Dokploy (service « Docker Compose »).
+#
+# Dans Dokploy : Compose Path = ./docker-compose.dokploy.yml
+# Marche à suivre complète : DEPLOY.md
+#
+# - Les variables viennent de l'onglet « Environment » de Dokploy, qui les écrit dans un fichier
+#   .env à côté de ce fichier (modèle : dokploy.env.example).
+# - Le domaine se règle dans l'onglet « Domains » (service popote-web, port 80, HTTPS Let's Encrypt) :
+#   Dokploy ajoute lui-même les labels Traefik au déploiement. Aucun port n'est publié sur l'hôte.
+# - La base est un MongoDB externe (Atlas) : rien n'est stocké dans les conteneurs, pas de volume.
+
+services:
+  # Les noms de service sont préfixés : sur le réseau partagé de Dokploy, un nom aussi courant
+  # que « api » pourrait désigner le conteneur d'un autre projet.
+  popote-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI:?Renseigne MONGODB_URI dans l'onglet Environment de Dokploy}
+      MONGODB_DB: ${MONGODB_DB:-bouffe}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Renseigne JWT_ACCESS_SECRET (openssl rand -hex 48)}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-30}
+      # L'application n'est servie qu'en HTTPS : le cookie de session ne voyage jamais en clair.
+      COOKIE_SECURE: 'true'
+      CORS_ORIGINS: https://${APP_DOMAIN:?Renseigne APP_DOMAIN (ex. popote.abrines.fr)}
+      # Traefik puis nginx : deux proxies avant l'API, pour retrouver l'adresse réelle du client.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+      # Fermé par défaut : seuls les comptes déjà en base peuvent se connecter.
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
+      API_DOCS: ${API_DOCS:-false}
+      OFF_ENABLED: ${OFF_ENABLED:-true}
+      OFF_USER_AGENT: ${OFF_USER_AGENT:-Popote/0.1 (https://${APP_DOMAIN})}
+      RETAIL_PROVIDER: manual
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@${APP_DOMAIN}}
+    expose:
+      - '3000'
+    networks:
+      - interne
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  popote-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://popote-api:3000
+    expose:
+      - '80'
+    depends_on:
+      popote-api:
+        condition: service_healthy
+    networks:
+      # « interne » pour joindre l'API, « dokploy-network » pour être joint par Traefik.
+      - interne
+      - dokploy-network
+    logging: *logs
+
+networks:
+  interne:
+  dokploy-network:
+    external: true

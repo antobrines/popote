@@ -1,0 +1,65 @@
+# Popote — environnement complet en local (PWA + API + MongoDB).
+# Pour la mise en ligne avec Dokploy : docker-compose.dokploy.yml et DEPLOY.md.
+#
+#   Avec MongoDB local :   docker compose --profile local-db up --build
+#   Avec MongoDB Atlas :   renseigner MONGODB_URI dans .env, puis  docker compose up --build
+#
+# L'application est servie sur http://localhost:8080 (variable WEB_PORT).
+# Les variables viennent du fichier .env à la racine (voir .env.example).
+
+services:
+  mongo:
+    image: mongo:8
+    profiles: ['local-db']
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017}
+      MONGODB_DB: ${MONGODB_DB:-bouffe}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Définis JWT_ACCESS_SECRET dans .env (openssl rand -hex 48)}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-30}
+      # true dès que l'application est servie en HTTPS (production).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      CORS_ORIGINS: ${PUBLIC_URL:-http://localhost:8080}
+      OFF_ENABLED: ${OFF_ENABLED:-true}
+      OFF_USER_AGENT: ${OFF_USER_AGENT:-Popote/0.1 (application personnelle)}
+      RETAIL_PROVIDER: manual
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      DEMO_EMAIL: ${DEMO_EMAIL:-demo@bouffe.local}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    depends_on:
+      mongo:
+        condition: service_healthy
+        required: false
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://api:3000
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      - api
+
+volumes:
+  mongo-data:

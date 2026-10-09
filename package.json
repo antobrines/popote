@@ -1,0 +1,23 @@
+{
+  "name": "bouffe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PWA de nutrition, perte de poids et courses automatisées",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w @bouffe/core",
+    "build:api": "npm run build:core && npm run build -w @bouffe/api",
+    "build:web": "npm run build -w @bouffe/web",
+    "build": "npm run build:api && npm run build:web",
+    "dev:api": "npm run build:core && npm run start:dev -w @bouffe/api",
+    "dev:web": "npm run start -w @bouffe/web",
+    "seed": "npm run build:core && npm run seed -w @bouffe/api",
+    "test": "npm run test -w @bouffe/core"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

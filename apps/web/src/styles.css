@@ -1,0 +1,429 @@
+@import 'tailwindcss';
+
+/*
+ * Couche de design : épurée, beaucoup d'espace, cartes arrondies, hiérarchie typographique forte.
+ * Les couleurs sont des variables sémantiques : le mode sombre ne demande aucune classe dédiée.
+ */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-protein: var(--protein);
+  --color-protein-soft: var(--protein-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-card: 1.5rem;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --raised: #f0f0f3;
+  --fg: #1d1d1f;
+  --muted: #6e6e73;
+  --faint: #a1a1a6;
+  --line: rgba(0, 0, 0, 0.08);
+  --accent: #0b8f61;
+  --accent-soft: #e3f5ee;
+  --on-accent: #ffffff;
+  --protein: #0a6fdc;
+  --protein-soft: #e4f0ff;
+  --warn: #b25e00;
+  --warn-soft: #fff3df;
+  --danger: #d1242f;
+  --danger-soft: #ffeceb;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --card: #1c1c1e;
+  --raised: #2c2c2e;
+  --fg: #f5f5f7;
+  --muted: #a1a1a6;
+  --faint: #6e6e73;
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #30d158;
+  --accent-soft: rgba(48, 209, 88, 0.16);
+  --on-accent: #00210f;
+  --protein: #4da3ff;
+  --protein-soft: rgba(77, 163, 255, 0.16);
+  --warn: #ffb340;
+  --warn-soft: rgba(255, 179, 64, 0.14);
+  --danger: #ff6961;
+  --danger-soft: rgba(255, 105, 97, 0.15);
+  --shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #000000;
+    --card: #1c1c1e;
+    --raised: #2c2c2e;
+    --fg: #f5f5f7;
+    --muted: #a1a1a6;
+    --faint: #6e6e73;
+    --line: rgba(255, 255, 255, 0.1);
+    --accent: #30d158;
+    --accent-soft: rgba(48, 209, 88, 0.16);
+    --on-accent: #00210f;
+    --protein: #4da3ff;
+    --protein-soft: rgba(77, 163, 255, 0.16);
+    --warn: #ffb340;
+    --warn-soft: rgba(255, 179, 64, 0.14);
+    --danger: #ff6961;
+    --danger-soft: rgba(255, 105, 97, 0.15);
+    --shadow: none;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  button,
+  a,
+  input,
+  select {
+    touch-action: manipulation;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 34rem;
+    padding: calc(env(safe-area-inset-top) + 1.25rem) 1.25rem calc(env(safe-area-inset-bottom) + 6.5rem);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius-card);
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+  }
+
+  .title {
+    font-size: 2rem;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 1rem;
+    background: var(--raised);
+    color: var(--fg);
+    transition:
+      transform 0.15s var(--ease-soft),
+      opacity 0.15s;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .btn-dark {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  .btn-danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .btn-lg {
+    min-height: 3.75rem;
+    font-size: 1.0625rem;
+    width: 100%;
+    border-radius: 1.25rem;
+  }
+
+  .btn-sm {
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2.25rem;
+    padding: 0 0.875rem;
+    border-radius: 999px;
+    background: var(--raised);
+    color: var(--fg);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+
+  .chip[aria-pressed='true'],
+  .chip.on {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--raised);
+    color: var(--muted);
+  }
+
+  .badge-ok {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .badge-warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  .badge-info {
+    background: var(--protein-soft);
+    color: var(--protein);
+  }
+
+  .input {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0 1rem;
+    border-radius: 0.875rem;
+    /* Champ blanc sur le fond de page, gris doux à l'intérieur d'une carte. */
+    background: var(--field, var(--card));
+    color: var(--fg);
+    font-size: 1rem;
+    border: 1px solid transparent;
+  }
+
+  .card .input {
+    --field: var(--raised);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--card);
+  }
+
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .divide > * + * {
+    border-top: 1px solid var(--line);
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fade-in {
+    animation: fade-in 0.35s var(--ease-soft) both;
+  }
+
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.4);
+    animation: fade 0.2s ease both;
+  }
+
+  .sheet {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 51;
+    margin-inline: auto;
+    max-width: 34rem;
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--bg);
+    border-radius: 1.75rem 1.75rem 0 0;
+    padding: 0.75rem 1.25rem calc(env(safe-area-inset-bottom) + 1.5rem);
+    animation: sheet-up 0.32s var(--ease-soft) both;
+  }
+
+  /* Au-dessus du scanner plein écran, sous les messages. */
+  .sheet-backdrop.elevated {
+    z-index: 70;
+  }
+
+  .sheet.elevated {
+    z-index: 71;
+  }
+
+  .sheet::before {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 0.3125rem;
+    margin: 0 auto 1rem;
+    border-radius: 999px;
+    background: var(--line);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Export PDF : la page « imprimer » se suffit à elle-même. */
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --card: #ffffff;
+    --raised: #f3f3f3;
+    --fg: #000000;
+    --muted: #444444;
+    --line: #dddddd;
+    --shadow: none;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+
+  .print-day {
+    break-inside: avoid;
+  }
+}
