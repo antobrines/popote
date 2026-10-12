@@ -62,6 +62,16 @@ export function definedOnly<T extends object>(value: T): Partial<T> {
 /** Nom de l'application tel qu'il s'affiche (titres, notifications). Aussi dans `index.html` et le manifeste de la PWA. */
 export const APP_NAME = 'Popote';
 
+/**
+ * Pluriel d'un nom d'aliment : on accorde le premier mot (« yaourt aux fruits » → « yaourts aux
+ * fruits », « gâteau de riz » → « gâteaux de riz »). Un nom déjà au pluriel ne change pas.
+ */
+export function pluralFr(label: string): string {
+  const [first = '', ...rest] = label.trim().split(' ');
+  if (!first || /[sxz]$/i.test(first)) return label.trim();
+  return [/(eau|au|eu)$/i.test(first) ? `${first}x` : `${first}s`, ...rest].join(' ');
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }

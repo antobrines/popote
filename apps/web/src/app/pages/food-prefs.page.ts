@@ -209,7 +209,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
       <section class="card space-y-3">
         <h2 class="text-lg font-bold">Mes vrais produits</h2>
         <p class="text-sm leading-relaxed text-muted">
-          Les valeurs affichées sont des moyennes. Touche un aliment pour les remplacer par celles de ton produit (étiquette ou scan) : les grammages de ton programme deviennent exacts.
+          Les valeurs affichées sont des moyennes. Touche un aliment pour les remplacer par celles de ton produit (étiquette ou scan) : les grammages de ton programme deviennent exacts. Un aliment qui manque ? Ajoute-le : il sortira dans tes prochaines semaines.
         </p>
         <button type="button" class="btn w-full" (click)="create()"><app-icon name="plus" [size]="18" /> Ajouter un aliment</button>
         <p class="text-xs leading-relaxed text-muted">
@@ -236,7 +236,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
               <input id="f-name" class="input" name="name" maxlength="80" placeholder="Galettes de maïs" required [(ngModel)]="f.name" />
             </div>
             <div>
-              <p class="label">Famille</p>
+              <p class="label">Famille — elle décide de la place de l'aliment dans les repas</p>
               <div class="flex flex-wrap gap-1.5">
                 @for (c of categories; track c.value) {
                   <button type="button" class="chip" [class.on]="f.category === c.value" (click)="f.category = c.value">{{ c.label }}</button>
@@ -306,7 +306,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
                 <input class="input num" name="packPrice" type="number" inputmode="decimal" min="0" step="any" [(ngModel)]="f.packPrice" />
               </label>
             </div>
-            <p class="text-xs leading-relaxed text-muted">Un aliment ajouté apparaît dans tes stocks et tes recettes perso (« Mes recettes »). Les modèles de repas existants ne l'utilisent pas d'eux-mêmes.</p>
+            <p class="text-xs leading-relaxed text-muted">Un aliment ajouté entre dans le tirage de tes prochaines semaines selon sa famille : une viande ou un féculent dans les assiettes, un laitage ou un fruit en dessert et en collation, un fromage, un pain… Les recettes gardent leurs ingrédients. Il apparaît aussi dans tes stocks et tes recettes perso. Pour le voir moins ou plus du tout : « Rarement » ou « Jamais » dans la liste.</p>
           } @else {
             <p class="text-xs leading-relaxed text-muted">Tes programmes en cours sont recalculés avec ces valeurs : les quantités peuvent bouger de quelques grammes.</p>
           }

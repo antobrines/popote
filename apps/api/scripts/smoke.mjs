@@ -325,6 +325,45 @@ await call('DELETE', `/recipes/${snack.id}`);
 st = (await call('DELETE', `/foods/${ownFood.id}?today=${today}`)).json;
 ok('aliment personnel supprime une fois libre', !st.foods.some((f) => f.id === ownFood.id));
 
+// Un aliment ajoute se met a la main a la place d'un aliment de la meme famille…
+st = (await call('POST', '/foods', { today, food: { name: 'Yaourt aux fruits du test', category: 'laitier', per100: { kcal: 95, protein: 3.5, carbs: 15, fat: 2.3, fiber: 0.3 }, pieceGrams: 125 } })).json;
+const fruity = st.foods.find((f) => f.name === 'Yaourt aux fruits du test');
+// (les roles ouverts aux aliments ajoutes doivent etre servis tels quels par le catalogue)
+const openRoles = st.templates.flatMap((t) => t.items.filter((i) => i.open).map((i) => `${t.id}/${i.key}`));
+ok('roles ouverts servis par le catalogue', openRoles.includes('simple-assiette/dairy') && openRoles.includes('assiette-volaille/starch') && openRoles.includes('pates-bolognaise/dairy') && !openRoles.includes('pates-bolognaise/protein') && !openRoles.includes('pates-bolognaise/starch'), `${openRoles.length} roles ouverts`);
+const withDairy = [st.plan, st.nextPlan]
+  .flatMap((plan) => plan.days.flatMap((day) => day.meals.map((meal) => ({ plan, day, meal }))))
+  .find(({ day, meal }) => day.date >= today && meal.status === 'planned' && meal.items.some((i) => i.slotKey === 'dairy' && i.scaling === 'fixed'));
+if (withDairy) {
+  const base = `/meal-plans/${withDairy.plan.id}/meals/${withDairy.meal.id}/items/dairy`;
+  const options = (await call('GET', `${base}/alternatives`)).json;
+  st = (await call('POST', `${base}/replace`, { today, foodId: fruity.id })).json;
+  const swappedPlan = [st.plan, st.nextPlan].find((plan) => plan.id === withDairy.plan.id);
+  const swappedDay = swappedPlan.days[withDairy.day.index];
+  const swappedTarget = (swappedDay.baseKcal ?? swappedPlan.target.kcal) + (swappedDay.spreadKcal ?? 0);
+  ok(
+    'aliment ajoute propose en remplacement, journee reequilibree',
+    options.some((o) => o.foodId === fruity.id) && swappedDay.meals.some((m) => m.items.some((i) => i.foodId === fruity.id)) && Math.abs(swappedDay.nutrition.kcal - swappedTarget) <= 50,
+    `${options.length} choix, journee a ${swappedDay.nutrition.kcal} kcal pour ${swappedTarget} visees`,
+  );
+} else {
+  ok('aliment ajoute propose en remplacement, journee reequilibree', false, 'aucun repas a venir avec un laitage : controle a revoir');
+}
+
+// …et il entre de lui-meme dans le tirage des semaines suivantes, sans faire rater la cible.
+st = (await call('PUT', '/me', { today, preferences: { style: 'simple', cookOnce: false, trainingDays: Array(7).fill(false) } })).json;
+st = (await call('POST', '/meal-plans/generate', { today, weekStart: nextMonday, away: Array(7).fill('none') })).json;
+const drawn = st.nextPlan.days.flatMap((d) => d.meals).filter((m) => m.items.some((i) => i.foodId === fruity.id));
+ok(
+  'aliment ajoute tire a la generation, cible tenue',
+  drawn.length >= 1 &&
+    st.nextPlan.days.every((d) => Math.abs(d.nutrition.kcal - 2300) <= 50) &&
+    // Un yaourt sucre fait un dessert (une piece), jamais la source de proteines d'un repas.
+    drawn.every((m) => m.items.filter((i) => i.foodId === fruity.id).every((i) => i.scaling === 'fixed' && i.grams === 125)) &&
+    fruity.piece?.plural === 'yaourts aux fruits du test',
+  `${drawn.length} repas avec « ${fruity.name} », par exemple : ${drawn[0]?.name ?? '-'}`,
+);
+
 } catch (error) {
   failures++;
   console.log('FAIL erreur inattendue :', error);

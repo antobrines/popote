@@ -76,6 +76,14 @@ export function indexFoods(foods: Food[]): FoodIndex {
   return new Map(foods.map((f) => [f.id, f]));
 }
 
+/**
+ * Aliment ajouté par l'utilisateur (« Mes aliments → Ajouter un aliment »), par opposition à un
+ * aliment du catalogue dont il a seulement remplacé les valeurs par celles de son produit.
+ */
+export function isOwnFood(food: Pick<Food, 'id' | 'custom'>): boolean {
+  return food.custom === true && food.id.startsWith('mon-');
+}
+
 export function requireFood(index: FoodIndex, id: string): Food {
   const food = index.get(id);
   if (!food) throw new Error(`Aliment inconnu : ${id}`);

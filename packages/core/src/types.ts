@@ -155,6 +155,12 @@ export interface TemplateSlot {
   max?: number;
   step?: number;
   optional?: boolean;
+  /**
+   * Rôle ouvert : un aliment ajouté par l'utilisateur dans la même famille que ceux de la liste
+   * peut le tenir (son yaourt aux fruits en dessert, son pain à la place du pain complet).
+   * Les rôles qui font l'identité d'une recette restent fermés.
+   */
+  open?: boolean;
   /** Probabilité de garder un rôle facultatif (0–1 ; 0,6 par défaut). */
   chance?: number;
   /** `first` : prendre le premier aliment autorisé de la liste (les suivants ne servent que de repli). */

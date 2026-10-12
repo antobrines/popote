@@ -294,6 +294,7 @@ const RecipeSchema = top({
       max: Number,
       step: Number,
       optional: Boolean,
+      open: Boolean,
       chance: Number,
       pick: String,
       when: sub({ slot: String, in: [String] }),

@@ -9,12 +9,12 @@ const FRUITS_HOME = ['banane', 'pomme', 'clementine', 'kiwi', 'poire', 'compote'
 const FRUITS_PORTABLE = ['banane', 'pomme', 'clementine', 'poire'];
 
 /** Laitage de fin de repas. */
-const DAIRY: TemplateSlot = { key: 'dairy', foods: ['skyr', 'fromage-blanc'], scaling: 'fixed', pieces: 1, grams: 150 };
+const DAIRY: TemplateSlot = { key: 'dairy', open: true, foods: ['skyr', 'fromage-blanc'], scaling: 'fixed', pieces: 1, grams: 150 };
 /** Fruit ou compote de fin de repas. */
-const FRUIT: TemplateSlot = { key: 'fruit', foods: FRUITS_HOME, scaling: 'fixed', pieces: 1 };
-const FRUIT_PORTABLE: TemplateSlot = { key: 'fruit', foods: FRUITS_PORTABLE, scaling: 'fixed', pieces: 1 };
+const FRUIT: TemplateSlot = { key: 'fruit', open: true, foods: FRUITS_HOME, scaling: 'fixed', pieces: 1 };
+const FRUIT_PORTABLE: TemplateSlot = { key: 'fruit', open: true, foods: FRUITS_PORTABLE, scaling: 'fixed', pieces: 1 };
 const GOURDE: TemplateSlot = { key: 'compote', foods: ['compote-gourde'], scaling: 'fixed', pieces: 1 };
-const NUTS: TemplateSlot = { key: 'nuts', foods: ['amandes', 'noix'], scaling: 'energy', min: 10, max: 40, step: 5 };
+const NUTS: TemplateSlot = { key: 'nuts', open: true, foods: ['amandes', 'noix'], scaling: 'energy', min: 10, max: 40, step: 5 };
 
 const DESSERT_STEPS = ['Dessert : {dairy}.', 'Fruit : {fruit}.'];
 
@@ -25,7 +25,7 @@ const SIMPLE_STARCHES = ['riz', 'pates', 'pommes-de-terre', 'semoule', 'pates-co
 const SIMPLE_MEAT_MIN = 150;
 /** Du beurre ; de l'huile d'olive seulement si le beurre est refusé. */
 const SIMPLE_FAT: TemplateSlot = { key: 'fat', foods: ['beurre', 'huile-olive'], scaling: 'fixed', grams: 10, pick: 'first' };
-const SIMPLE_FRUIT: TemplateSlot = { key: 'fruit', foods: ['banane', 'pomme', 'poire', 'clementine', 'kiwi'], scaling: 'fixed', pieces: 1 };
+const SIMPLE_FRUIT: TemplateSlot = { key: 'fruit', open: true, foods: ['banane', 'pomme', 'poire', 'clementine', 'kiwi'], scaling: 'fixed', pieces: 1 };
 
 /** Assaisonnements interchangeables : même plat, autre saveur, quasiment aucune calorie. */
 const SEASONINGS = ['epices-cajun', 'paprika-fume', 'herbes-provence', 'epices-tex-mex', 'ail-persil', 'epices-tandoori', 'curry-poudre', 'jus-citron'];
@@ -40,9 +40,9 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     slots: ['dejeuner', 'diner'],
     context: 'home',
     items: [
-      { key: 'protein', foods: ['poulet', 'dinde', 'haut-de-cuisse-poulet'], scaling: 'protein' },
+      { key: 'protein', open: true, foods: ['poulet', 'dinde', 'haut-de-cuisse-poulet'], scaling: 'protein' },
       { key: 'seasoning', foods: SEASONINGS, scaling: 'fixed', optional: true },
-      { key: 'starch', foods: ['riz', 'pates', 'pommes-de-terre', 'semoule', 'pates-completes', 'gnocchis'], scaling: 'energy' },
+      { key: 'starch', open: true, foods: ['riz', 'pates', 'pommes-de-terre', 'semoule', 'pates-completes', 'gnocchis'], scaling: 'energy' },
       { key: 'fat', foods: ['beurre', 'huile-olive'], scaling: 'fixed', grams: 10 },
       {
         key: 'topping',
@@ -70,9 +70,9 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     slots: ['dejeuner', 'diner'],
     context: 'home',
     items: [
-      { key: 'protein', foods: ['steak-hache-5', 'rumsteck'], scaling: 'protein' },
+      { key: 'protein', open: true, foods: ['steak-hache-5', 'rumsteck'], scaling: 'protein' },
       { key: 'seasoning', foods: ['epices-cajun', 'paprika-fume', 'herbes-provence', 'epices-tex-mex', 'ail-persil'], scaling: 'fixed', optional: true },
-      { key: 'starch', foods: ['pates', 'pommes-de-terre', 'riz', 'pates-completes', 'gnocchis', 'semoule'], scaling: 'energy' },
+      { key: 'starch', open: true, foods: ['pates', 'pommes-de-terre', 'riz', 'pates-completes', 'gnocchis', 'semoule'], scaling: 'energy' },
       { key: 'fat', foods: ['beurre', 'huile-olive'], scaling: 'fixed', grams: 10 },
       {
         key: 'topping',
@@ -101,7 +101,7 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     items: [
       { key: 'protein', foods: ['saumon'], scaling: 'protein' },
       { key: 'seasoning', foods: ['jus-citron', 'herbes-provence', 'ail-persil'], scaling: 'fixed', optional: true },
-      { key: 'starch', foods: ['riz', 'pommes-de-terre', 'pates'], scaling: 'energy' },
+      { key: 'starch', open: true, foods: ['riz', 'pommes-de-terre', 'pates'], scaling: 'energy' },
       { key: 'sauce', foods: ['sauce-soja'], scaling: 'fixed', grams: 10, optional: true, when: { slot: 'starch', in: ['riz'] } },
       { key: 'fat', foods: ['beurre'], scaling: 'fixed', grams: 5, optional: true, when: { slot: 'starch', in: ['pommes-de-terre', 'pates'] } },
       DAIRY,
@@ -123,7 +123,7 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     items: [
       { key: 'protein', foods: ['poisson-blanc'], scaling: 'protein' },
       { key: 'seasoning', foods: ['jus-citron', 'herbes-provence', 'ail-persil', 'curry-poudre'], scaling: 'fixed', optional: true },
-      { key: 'starch', foods: ['riz', 'pommes-de-terre', 'semoule'], scaling: 'energy' },
+      { key: 'starch', open: true, foods: ['riz', 'pommes-de-terre', 'semoule'], scaling: 'energy' },
       { key: 'fat', foods: ['beurre', 'huile-olive'], scaling: 'fixed', grams: 15 },
       DAIRY,
       FRUIT,
@@ -334,8 +334,8 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     slots: ['collation', 'petit-dejeuner'],
     context: 'any',
     items: [
-      { key: 'dairy', foods: ['skyr', 'fromage-blanc'], scaling: 'protein' },
-      { key: 'fruit', foods: ['banane', 'pomme', 'kiwi', 'poire', 'clementine', 'fruits-rouges'], scaling: 'fixed', pieces: 1, grams: 100 },
+      { key: 'dairy', open: true, foods: ['skyr', 'fromage-blanc'], scaling: 'protein' },
+      { key: 'fruit', open: true, foods: ['banane', 'pomme', 'kiwi', 'poire', 'clementine', 'fruits-rouges'], scaling: 'fixed', pieces: 1, grams: 100 },
       NUTS,
       { key: 'sweet', foods: ['miel'], scaling: 'fixed', grams: 10, optional: true },
     ],
@@ -1417,13 +1417,13 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     context: 'home',
     styles: ['simple'],
     items: [
-      { key: 'protein', foods: [...SIMPLE_MEATS, 'saumon', 'poisson-blanc'], scaling: 'protein', min: SIMPLE_MEAT_MIN },
-      { key: 'starch', foods: SIMPLE_STARCHES, scaling: 'energy' },
-      { key: 'cheese', foods: ['parmesan', 'emmental'], scaling: 'fixed', grams: 30, optional: true, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
-      { key: 'bread', foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pommes-de-terre'] } },
+      { key: 'protein', open: true, foods: [...SIMPLE_MEATS, 'saumon', 'poisson-blanc'], scaling: 'protein', min: SIMPLE_MEAT_MIN },
+      { key: 'starch', open: true, foods: SIMPLE_STARCHES, scaling: 'energy' },
+      { key: 'cheese', open: true, foods: ['parmesan', 'emmental'], scaling: 'fixed', grams: 30, optional: true, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
+      { key: 'bread', open: true, foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pommes-de-terre'] } },
       SIMPLE_FAT,
-      { key: 'dairy', foods: ['skyr', 'yaourt', 'fromage-blanc'], scaling: 'fixed', pieces: 1, grams: 150, optional: true, chance: 0.45 },
-      { key: 'fruit', foods: ['compote', 'pomme', 'poire', 'clementine'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.85, pick: 'first' },
+      { key: 'dairy', open: true, foods: ['skyr', 'yaourt', 'fromage-blanc'], scaling: 'fixed', pieces: 1, grams: 150, optional: true, chance: 0.45 },
+      { key: 'fruit', open: true, foods: ['compote', 'pomme', 'poire', 'clementine'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.85, pick: 'first' },
     ],
     methods: ['poele', 'air-fryer', 'rice-cooker', 'casserole'],
     levels: ['ultra-rapide', 'normal', 'meal-prep'],
@@ -1441,15 +1441,15 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     context: 'home',
     styles: ['simple'],
     items: [
-      { key: 'protein', foods: SIMPLE_MEATS, scaling: 'protein', min: SIMPLE_MEAT_MIN },
+      { key: 'protein', open: true, foods: SIMPLE_MEATS, scaling: 'protein', min: SIMPLE_MEAT_MIN },
       { key: 'starch', foods: SIMPLE_STARCHES, scaling: 'energy' },
       // Trois œufs avec des pommes de terre, deux avec un féculent sec, plus nourrissant.
       { key: 'eggs3', foods: ['oeufs'], scaling: 'fixed', pieces: 3, when: { slot: 'starch', in: ['pommes-de-terre'] } },
       { key: 'eggs', foods: ['oeufs'], scaling: 'fixed', pieces: 2, when: { slot: 'starch', in: ['riz', 'pates', 'semoule', 'pates-completes'] } },
-      { key: 'cheese', foods: ['emmental', 'parmesan'], scaling: 'fixed', grams: 30, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
-      { key: 'bread', foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.3 },
+      { key: 'cheese', open: true, foods: ['emmental', 'parmesan'], scaling: 'fixed', grams: 30, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
+      { key: 'bread', open: true, foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.3 },
       SIMPLE_FAT,
-      { key: 'dairy', foods: ['yaourt', 'skyr'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.4 },
+      { key: 'dairy', open: true, foods: ['yaourt', 'skyr'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.4 },
     ],
     methods: ['poele', 'air-fryer', 'rice-cooker', 'casserole'],
     levels: ['ultra-rapide', 'normal', 'meal-prep'],
@@ -1475,7 +1475,7 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     slots: ['collation', 'petit-dejeuner'],
     context: 'home',
     styles: ['simple'],
-    items: [{ key: 'dairy', foods: ['fromage-blanc', 'skyr'], scaling: 'protein' }, SIMPLE_FRUIT, NUTS],
+    items: [{ key: 'dairy', open: true, foods: ['fromage-blanc', 'skyr'], scaling: 'protein' }, SIMPLE_FRUIT, NUTS],
     methods: ['aucune'],
     levels: ['ultra-rapide', 'normal', 'meal-prep'],
     prepMin: 2,

@@ -5,7 +5,7 @@
  * quantités, on les note (variété, stocks, préférences, anti-gaspillage, écart à la cible…)
  * et on garde le meilleur. La journée est ensuite équilibrée par `balanceDay`.
  */
-import { type FoodIndex, ZERO, dayNutrition, indexFoods, itemsNutritionExact, mealNutrition, requireFood, roundNutrients, sumNutrients } from '../nutrition.js';
+import { type FoodIndex, ZERO, dayNutrition, indexFoods, isOwnFood, itemsNutritionExact, mealNutrition, requireFood, roundNutrients, sumNutrients } from '../nutrition.js';
 import { optimizePackages } from '../shopping/pricing.js';
 import type {
   Food,
@@ -50,6 +50,8 @@ interface WeekState {
 interface Context {
   input: PlannerInput;
   foods: FoodIndex;
+  /** Aliments ajoutés par l'utilisateur : candidats des rôles ouverts de leur famille. */
+  own: Food[];
   allowed: Set<string>;
   templates: Map<string, MealTemplate>;
   week: WeekState;
@@ -68,6 +70,7 @@ function createContext(input: PlannerInput): Context {
   return {
     input,
     foods,
+    own: input.foods.filter(isOwnFood),
     allowed: new Set(input.foods.filter((f) => isAllowed(f, input)).map((f) => f.id)),
     templates: new Map(input.templates.map((t) => [t.id, t])),
     week: {
@@ -183,11 +186,27 @@ export function itemFromSlot(slot: TemplateSlot, food: Food): MealItem {
 }
 
 /**
+ * Aliments candidats d'un rôle : ceux du modèle, plus — si le rôle est ouvert — les aliments que
+ * l'utilisateur a ajoutés dans la même famille. Ils viennent après ceux du modèle : un rôle qui
+ * prend « le premier autorisé » ne les choisit qu'en repli.
+ */
+function slotFoodIds(slot: TemplateSlot, foods: FoodIndex, own: Food[]): string[] {
+  if (!slot.open || own.length === 0) return slot.foods;
+  const base = slot.foods.map((id) => foods.get(id)).filter((f): f is Food => !!f);
+  const families = new Set(base.map((f) => f.category));
+  // Quand le rôle sert à atteindre les protéines, l'aliment ajouté doit en apporter comme ceux du
+  // modèle : un yaourt sucré fait un dessert, pas la source de protéines d'une collation.
+  const density = (f: Food) => f.per100.protein / Math.max(1, f.per100.kcal);
+  const floor = slot.scaling === 'protein' && base.length > 0 ? Math.min(...base.map(density)) * 0.6 : 0;
+  return [...slot.foods, ...own.filter((f) => families.has(f.category) && !slot.foods.includes(f.id) && density(f) >= floor).map((f) => f.id)];
+}
+
+/**
  * Aliments utilisables pour un rôle. Hors domicile, seuls les aliments transportables sans cuisine
  * passent — sauf pour un repas « préparé la veille », dont l'auteur a choisi les ingrédients.
  */
 function slotCandidates(ctx: Context, slot: TemplateSlot, context: MealContext, prepAhead = false): Food[] {
-  return slot.foods
+  return slotFoodIds(slot, ctx.foods, ctx.own)
     .filter((id) => ctx.allowed.has(id))
     .map((id) => ctx.foods.get(id))
     .filter((f): f is Food => !!f)
@@ -205,6 +224,9 @@ function foodWeight(ctx: Context, food: Food, scaling: TemplateSlot['scaling'], 
   // Déjà au menu aujourd'hui : on varie (surtout les fruits et laitages de fin de repas).
   if (dayFoods?.has(food.id)) w *= scaling === 'fixed' ? 0.2 : 0.5;
   if (ctx.input.prefs.likedFoods.includes(food.id)) w *= 1.5;
+  // Un aliment que l'utilisateur a pris la peine d'ajouter : mis en avant tant qu'il n'est pas dans
+  // la semaine, discret ensuite — il doit sortir, pas remplacer tout le reste.
+  if (isOwnFood(food)) w *= (ctx.week.foodUse.get(food.id) ?? 0) > 0 || dayFoods?.has(food.id) ? 0.35 : 1.5;
   if ((ctx.week.stockLeft.get(food.id) ?? 0) >= food.portion.min) w *= 1.8;
   const used = ctx.week.foodUse.get(food.id) ?? 0;
   if (scaling === 'protein') {
@@ -289,6 +311,14 @@ function scoreMeal(ctx: Context, meal: Meal, template: MealTemplate, req: PickRe
   // Préférences, notes et favoris.
   for (const item of meal.items) {
     if (item.scaling !== 'fixed' && prefs.likedFoods.includes(item.foodId)) score += 5;
+    // Un aliment ajouté par l'utilisateur compte comme apprécié, et il est poussé tant qu'il n'est
+    // pas encore dans la semaine : on s'attend à voir sortir ce qu'on vient d'ajouter.
+    const added = ctx.foods.get(item.foodId);
+    if (added && isOwnFood(added)) {
+      if (item.scaling !== 'fixed') score += 5;
+      const alreadyThisWeek = (ctx.week.foodUse.get(item.foodId) ?? 0) > 0 || req.dayMeals.some((m) => m.items.some((i) => i.foodId === item.foodId));
+      if (!alreadyThisWeek) score += 14;
+    }
     if (isLimited(ctx, item.foodId)) {
       const alreadyThisWeek = (ctx.week.foodUse.get(item.foodId) ?? 0) > 0 || req.dayMeals.some((m) => m.items.some((i) => i.foodId === item.foodId));
       score -= alreadyThisWeek ? 150 : 14;
@@ -799,7 +829,10 @@ function swapCandidates(ctx: Context, meal: Meal, slotKey: string): Food[] {
   const fits = (f: Food) => ctx.allowed.has(f.id) && (meal.context === 'home' || template?.prepAhead === true || (f.portable && f.noCook));
   const pool = slot ? slotCandidates(ctx, slot, meal.context, template?.prepAhead) : ctx.input.foods.filter((f) => f.category === currentFood.category && fits(f));
   const sameGroup = ctx.input.foods.filter((f) => !!currentFood.substitutionGroup && f.substitutionGroup === currentFood.substitutionGroup && fits(f));
-  const merged = new Map([...pool, ...sameGroup].map((f) => [f.id, f]));
+  // Les aliments que l'utilisateur a ajoutés ne sont dans aucun modèle : ils se proposent à la
+  // place d'un aliment de la même famille (son yaourt aux fruits à la place du yaourt nature).
+  const own = ctx.input.foods.filter((f) => isOwnFood(f) && f.category === currentFood.category && fits(f));
+  const merged = new Map([...pool, ...sameGroup, ...own].map((f) => [f.id, f]));
   merged.delete(current.foodId);
   return [...merged.values()];
 }
@@ -1069,6 +1102,7 @@ export function countPossibleDishes(
   prefs: Pick<PlannerPreferences, 'excludedFoods' | 'excludedTags' | 'bannedTemplates'> & Pick<Partial<PlannerPreferences>, 'awayPrepAhead' | 'style'>,
 ): DishCount {
   const index = indexFoods(foods);
+  const own = foods.filter(isOwnFood);
   const allowed = new Set(foods.filter((f) => isAllowed(f, { prefs: prefs as PlannerPreferences })).map((f) => f.id));
 
   const dishes = (template: MealTemplate, context: MealContext, withFlavors: boolean): Set<string> => {
@@ -1083,7 +1117,7 @@ export function countPossibleDishes(
         const ref = chosen.get(slot.when.slot);
         if (!ref || !slot.when.in.includes(ref)) return walk(position + 1, chosen, identity);
       }
-      const candidates = slot.foods.filter((id) => {
+      const candidates = slotFoodIds(slot, index, own).filter((id) => {
         const food = index.get(id);
         return !!food && allowed.has(id) && (context === 'home' || template.prepAhead === true || (food.portable && food.noCook));
       });

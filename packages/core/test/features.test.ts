@@ -22,6 +22,7 @@ import {
   dayTargetKcal,
   defaultStructure,
   estimateGoalDate,
+  foodAlternatives,
   generateWeek,
   indexFoods,
   ingredientLabel,
@@ -29,6 +30,8 @@ import {
   optimizePackages,
   planTable,
   planTableText,
+  pluralFr,
+  replaceFood,
   replaceMeal,
   reviewWeek,
   swapMeals,
@@ -350,6 +353,105 @@ describe('recettes personnelles', () => {
         expect(onTarget(plan)).toBe(true);
       }
     }
+  });
+
+  // ───────────── Aliments ajoutés par l'utilisateur ─────────────
+  const fruity = {
+    ...foods.get('yaourt')!,
+    id: 'mon-yaourt-aux-fruits',
+    name: 'Yaourt aux fruits',
+    shortName: 'yaourt aux fruits',
+    per100: { kcal: 95, protein: 3.5, carbs: 15, fat: 2.3, fiber: 0.3 },
+    // Comme le serveur les crée : sans savoir s'ils se transportent, donc jamais hors domicile.
+    portable: false,
+    custom: true,
+    ciqual: undefined,
+  };
+  const crackers = { ...foods.get('riz')!, id: 'mon-galettes', name: 'Galettes de maïs', shortName: 'galettes de maïs', rawLabel: undefined, cookedYield: undefined, cooking: undefined, portable: false, custom: true, ciqual: undefined };
+  const withOwn = [...SEED_FOODS, fruity, crackers];
+  const ownIds = new Set(['mon-yaourt-aux-fruits', 'mon-galettes']);
+  const usesOwn = (plan: WeekPlan) => allMeals(plan).flatMap((m) => m.items.filter((i) => ownIds.has(i.foodId)).map((item) => ({ meal: m, item })));
+
+  it('tire les aliments ajoutés dans les rôles ouverts de leur famille, à la cible chaque jour', () => {
+    const seen = new Map<string, number>();
+    for (const style of ['simple', 'cuisine'] as const) {
+      for (const seed of [231, 232, 233, 234, 235, 236]) {
+        const plan = generateWeek(makeInput({ seed, foods: withOwn, prefs: { ...DEMO_PREFS, style } }));
+        expect(onTarget(plan), `${style}, graine ${seed}`).toBe(true);
+        for (const day of plan.days) expect(day.nutrition.protein).toBeGreaterThanOrEqual(170);
+        for (const { meal, item } of usesOwn(plan)) {
+          seen.set(item.foodId, (seen.get(item.foodId) ?? 0) + 1);
+          // Jamais dans un rôle qui fait l'identité d'une recette.
+          const slot = SEED_TEMPLATES.find((t) => t.id === meal.templateId)!.items.find((i) => i.key === item.slotKey)!;
+          expect(slot.open, `${meal.name} / ${item.slotKey}`).toBe(true);
+          // Le laitage reste un laitage, le féculent un féculent.
+          expect(item.slotKey).toBe(item.foodId === 'mon-yaourt-aux-fruits' ? 'dairy' : 'starch');
+          // Un yaourt sucré fait un dessert : jamais la source de protéines d'une collation.
+          if (item.foodId === 'mon-yaourt-aux-fruits') {
+            expect(item.scaling, meal.name).toBe('fixed');
+            expect(item.grams).toBe(125);
+          }
+        }
+      }
+    }
+    // Sur douze semaines, chacun est sorti plusieurs fois — sans envahir les menus.
+    expect(seen.get('mon-yaourt-aux-fruits')).toBeGreaterThanOrEqual(6);
+    expect(seen.get('mon-galettes')).toBeGreaterThanOrEqual(6);
+    expect(seen.get('mon-yaourt-aux-fruits')!).toBeLessThan(12 * 10);
+  });
+
+  it('accepte un aliment ajouté comme source de protéines s’il en apporte vraiment', () => {
+    const quark = { ...fruity, id: 'mon-fromage-blanc-proteine', name: 'Fromage blanc protéiné', shortName: 'fromage blanc protéiné', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.3, fiber: 0 } };
+    let asLever = 0;
+    for (const seed of [239, 240, 241, 242, 243, 244]) {
+      const plan = generateWeek(makeInput({ seed, foods: [...SEED_FOODS, quark], prefs: { ...DEMO_PREFS, style: 'simple' } }));
+      asLever += allMeals(plan).filter((m) => m.items.some((i) => i.foodId === quark.id && i.scaling === 'protein')).length;
+      expect(onTarget(plan)).toBe(true);
+    }
+    expect(asLever).toBeGreaterThan(0);
+  });
+
+  it('accorde le pluriel du nom d’un aliment ajouté', () => {
+    expect(pluralFr('yaourt aux fruits')).toBe('yaourts aux fruits');
+    expect(pluralFr('gâteau de riz')).toBe('gâteaux de riz');
+    expect(pluralFr('galettes de maïs')).toBe('galettes de maïs');
+    expect(pluralFr('riz au lait')).toBe('riz au lait');
+    expect(pluralFr('petit-suisse')).toBe('petit-suisses');
+  });
+
+  it('n’emporte pas un aliment ajouté hors domicile, et respecte « Jamais »', () => {
+    const away = Array(7).fill('full') as PlannerInput['away'];
+    for (const seed of [237, 238]) {
+      expect(usesOwn(generateWeek(makeInput({ seed, foods: withOwn, away })))).toHaveLength(0);
+      const refused = generateWeek(makeInput({ seed, foods: withOwn, prefs: { ...DEMO_PREFS, style: 'simple', excludedFoods: ['mon-yaourt-aux-fruits', 'mon-galettes'] } }));
+      expect(usesOwn(refused)).toHaveLength(0);
+    }
+  });
+
+  it('compte les assiettes qu’un aliment ajouté rend possibles', () => {
+    const base = { excludedFoods: [], excludedTags: ['legume', 'poisson'], bannedTemplates: [], style: 'simple' as const };
+    const before = countPossibleDishes(SEED_FOODS, SEED_TEMPLATES, base).mainsHome;
+    // Un féculent de plus : une assiette par viande (les assiettes aux œufs gardent leurs féculents).
+    expect(countPossibleDishes(withOwn, SEED_TEMPLATES, base).mainsHome).toBe(before + 5);
+  });
+
+  it('propose un aliment ajouté à la place d’un aliment de la même famille, et rééquilibre', () => {
+    const input = makeInput({ seed: 222, foods: withOwn, prefs: { ...DEMO_PREFS, style: 'simple' } });
+    const plan = generateWeek(input);
+    const fixedDairy = (m: WeekPlan['days'][number]['meals'][number]) => m.items.some((i) => i.slotKey === 'dairy' && i.scaling === 'fixed' && !ownIds.has(i.foodId));
+    const day = plan.days.find((d) => d.meals.some(fixedDairy))!;
+    const meal = day.meals.find(fixedDairy)!;
+    const options = foodAlternatives(input, plan, day.index, meal.id, 'dairy').map((o) => o.foodId);
+    expect(options).toContain('mon-yaourt-aux-fruits');
+    // Même famille seulement : des galettes ne remplacent pas un laitage.
+    expect(options).not.toContain('mon-galettes');
+
+    const next = replaceFood(input, plan, day.index, meal.id, 'dairy', 'mon-yaourt-aux-fruits');
+    const swapped = next.days[day.index]!.meals.find((m) => m.id === meal.id)!;
+    expect(swapped.items.find((i) => i.slotKey === 'dairy')!.foodId).toBe('mon-yaourt-aux-fruits');
+    // Le reste de la journée s'ajuste pour rester sur la cible.
+    expect(Math.abs(next.days[day.index]!.nutrition.kcal - dayTargetKcal(next, next.days[day.index]!))).toBeLessThanOrEqual(next.target.toleranceKcal);
+    expect(next.days[day.index]!.nutrition.protein).toBeGreaterThanOrEqual(170);
   });
 
   it('refuse une recette incomplète avec un message clair', () => {

@@ -17,6 +17,7 @@ import {
   customRecipeId,
   indexFoods,
   normalize,
+  pluralFr,
   pricePerKg,
 } from '@bouffe/core';
 import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
@@ -257,7 +258,7 @@ export class CatalogService implements OnModuleInit {
         aisle: CATEGORY_AISLE[category] ?? 'autres',
         per100,
         unit: 'g',
-        piece: pieceGrams ? { label: name.toLowerCase(), plural: name.toLowerCase(), grams: pieceGrams } : undefined,
+        piece: pieceGrams ? { label: name.toLowerCase(), plural: pluralFr(name.toLowerCase()), grams: pieceGrams } : undefined,
         portable: false,
         noCook: !['viande', 'poisson', 'feculent', 'oeuf'].includes(category),
         portion: pieceGrams ? { min: pieceGrams, max: pieceGrams * 3, step: pieceGrams } : dense ? { min: 10, max: 150, step: 5 } : { min: 50, max: 400, step: 10 },
