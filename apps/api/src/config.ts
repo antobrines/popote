@@ -18,6 +18,20 @@ if (env === 'production' && accessSecret.length < 32) {
   throw new Error('JWT_ACCESS_SECRET doit contenir au moins 32 caractères en production.');
 }
 
+/**
+ * Qui peut créer un compte ?
+ * - `invite` : il faut un code d'invitation (SIGNUP_CODE), à glisser dans le lien d'inscription ;
+ * - `open`   : tout le monde (ALLOW_SIGNUP différent de `false`, sans code) ;
+ * - `closed` : personne (ALLOW_SIGNUP=false, sans code).
+ */
+export type SignupMode = 'open' | 'invite' | 'closed';
+
+const signupCode = (process.env.SIGNUP_CODE ?? '').trim();
+if (signupCode && signupCode.length < 8) {
+  throw new Error("SIGNUP_CODE doit contenir au moins 8 caractères : c'est lui qui protège la création de comptes.");
+}
+const signupMode: SignupMode = signupCode ? 'invite' : process.env.ALLOW_SIGNUP !== 'false' ? 'open' : 'closed';
+
 export const config = {
   env,
   isProd: env === 'production',
@@ -27,8 +41,10 @@ export const config = {
    * de débit). 1 derrière nginx seul ; 2 derrière Traefik puis nginx (Dokploy).
    */
   trustProxy: Number(process.env.TRUST_PROXY ?? 1),
-  /** `false` ferme la création de comptes : à faire une fois les tiens créés, sur une installation publique. */
-  allowSignup: process.env.ALLOW_SIGNUP !== 'false',
+  /** Création de comptes : ouverte, sur invitation ou fermée (voir `SignupMode`). */
+  signupMode,
+  /** Code d'invitation attendu en mode `invite`. */
+  signupCode,
   /** Documentation OpenAPI sur /api/docs : toujours en développement, sur demande en production. */
   apiDocs: process.env.API_DOCS ? process.env.API_DOCS === 'true' : env !== 'production',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:4200').split(',').map((o) => o.trim()),

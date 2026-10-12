@@ -33,6 +33,8 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-2}
       # Fermé par défaut : seuls les comptes déjà en base peuvent se connecter.
       ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
+      # S'il est renseigné, on peut créer un compte avec ce code d'invitation (lien /inscription?code=…).
+      SIGNUP_CODE: ${SIGNUP_CODE:-}
       API_DOCS: ${API_DOCS:-false}
       OFF_ENABLED: ${OFF_ENABLED:-true}
       OFF_USER_AGENT: ${OFF_USER_AGENT:-Popote/0.1 (https://${APP_DOMAIN})}

@@ -7,7 +7,7 @@
  *   limité au chemin /api/auth, avec rotation à chaque usage et détection de réutilisation.
  * - OAuth futur : il suffira d'ajouter un contrôleur qui appelle `AuthService.issueSession`.
  */
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { DEFAULT_EQUIPMENT } from '@bouffe/core';
 import {
   Body,
@@ -54,6 +54,18 @@ export class RegisterDto {
   @IsOptional()
   @IsBoolean()
   consentHealthData?: boolean;
+
+  /** Code d'invitation, quand l'installation n'accepte les inscriptions que sur invitation. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  inviteCode?: string;
+}
+
+/** Comparaison en temps constant : le temps de réponse ne doit rien dire du code attendu. */
+function sameSecret(given: string | undefined, expected: string): boolean {
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest((given ?? '').trim()), digest(expected));
 }
 
 export class LoginDto {
@@ -159,7 +171,10 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register')
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    if (!config.allowSignup) throw new ForbiddenException('Les inscriptions sont fermées sur cette installation.');
+    if (config.signupMode === 'closed') throw new ForbiddenException('Les inscriptions sont fermées sur cette installation.');
+    if (config.signupMode === 'invite' && !sameSecret(dto.inviteCode, config.signupCode)) {
+      throw new ForbiddenException(dto.inviteCode ? "Ce code d'invitation n'est pas valable." : "Il faut un code d'invitation pour créer un compte ici.");
+    }
     const user = await this.auth.register(dto);
     return this.respond(res, req, user, await this.auth.issueSession(user.id, req.headers['user-agent']));
   }

@@ -40,13 +40,27 @@ const email = `smoke-${Date.now()}@bouffe.test`;
 const password = randomBytes(12).toString('base64url');
 
 const health = await call('GET', '/health');
-ok('health', health.status === 200 && health.json.status === 'ok' && typeof health.json.signup === 'boolean', `inscriptions ${health.json.signup ? 'ouvertes' : 'fermees'}`);
-if (health.json.signup === false) {
-  console.log('Les inscriptions sont fermees sur cette installation : ce test a besoin de creer un compte temporaire (ALLOW_SIGNUP=true).');
+const signupMode = health.json.signupMode;
+ok(
+  'health',
+  health.status === 200 && health.json.status === 'ok' && ['open', 'invite', 'closed'].includes(signupMode) && health.json.signup === (signupMode !== 'closed'),
+  `inscriptions : ${signupMode}`,
+);
+// Sur invitation, le test a besoin du code : SIGNUP_CODE=… npm run smoke -w @bouffe/api
+const inviteCode = signupMode === 'invite' ? process.env.SIGNUP_CODE : undefined;
+if (signupMode === 'closed' || (signupMode === 'invite' && !inviteCode)) {
+  console.log(
+    signupMode === 'closed'
+      ? 'Les inscriptions sont fermees sur cette installation : ce test a besoin de creer un compte temporaire.'
+      : "Les inscriptions se font sur invitation : passe le code au test (SIGNUP_CODE=...) pour qu'il cree son compte temporaire.",
+  );
   process.exit(1);
 }
 ok('state sans token = 401', (await call('GET', '/state?expect')).status === 401);
-const registered = await call('POST', '/auth/register', { email, password, displayName: 'Smoke' });
+if (signupMode === 'invite') {
+  ok('inscription sans code = 403', (await call('POST', '/auth/register?expect', { email, password, displayName: 'Smoke' })).status === 403);
+}
+const registered = await call('POST', '/auth/register', { email, password, displayName: 'Smoke', inviteCode });
 token = registered.json.accessToken;
 ok('inscription', registered.status === 201 && !!token && !!cookie, `hashExpose=${'passwordHash' in (registered.json.user ?? {})}`);
 ok('login mauvais mdp = 401', (await call('POST', '/auth/login?expect', { email, password: 'mauvais-mot-de-passe' })).status === 401);

@@ -69,15 +69,31 @@ openssl rand -hex 48
 
 ## 3. Vérifier
 
-- `https://popote.abrines.fr/api/health` répond `{"status":"ok", …, "signup":false}`.
+- `https://popote.abrines.fr/api/health` répond `{"status":"ok", …, "signupMode":"closed"}` (ou `"invite"` si tu as renseigné `SIGNUP_CODE`).
 - La page de connexion s'affiche ; tu te connectes avec ton compte habituel.
 - Sur ton téléphone : ouvre l'adresse, puis « Ajouter à l'écran d'accueil ». La caméra (scan) et les notifications ne fonctionnent qu'en HTTPS : c'est maintenant le cas.
 
 ## Comptes
 
-Les inscriptions sont **fermées** par défaut (`ALLOW_SIGNUP=false`) : sur une adresse publique, n'importe qui pourrait sinon créer un compte dans ta base. Tes comptes existants fonctionnent tels quels.
+La création de compte se fait sur `https://popote.abrines.fr/inscription`. Deux variables décident de qui peut s'en servir :
 
-Pour créer un compte (toi sur une base vide, un proche) : passe `ALLOW_SIGNUP=true`, redéploie, crée le compte, puis reviens à `false` et redéploie. Le bouton « Créer un compte » n'apparaît que lorsque les inscriptions sont ouvertes.
+| Mode | Variables | Effet |
+| --- | --- | --- |
+| Fermé (par défaut) | `SIGNUP_CODE` vide, `ALLOW_SIGNUP=false` | Personne ne peut créer de compte. La page l'annonce, l'écran de connexion ne propose pas de s'inscrire. Tes comptes existants fonctionnent tels quels. |
+| Sur invitation (conseillé) | `SIGNUP_CODE=<code>` | Il faut le code pour créer un compte. `ALLOW_SIGNUP` est alors ignoré. |
+| Ouvert | `SIGNUP_CODE` vide, `ALLOW_SIGNUP=true` | N'importe qui peut créer un compte dans ta base : à éviter sur une adresse publique. |
+
+**Inviter quelqu'un** — choisis un code d'au moins 8 caractères (l'API refuse de démarrer s'il est plus court) :
+
+```bash
+openssl rand -hex 8
+```
+
+Mets-le dans `SIGNUP_CODE`, redéploie, puis envoie ce lien : `https://popote.abrines.fr/inscription?code=<le code>`. Le code est déjà rempli à l'arrivée ; il reste à saisir un prénom, un email et un mot de passe. Le même lien sert à plusieurs personnes.
+
+**Annuler les invitations** — change `SIGNUP_CODE` (les liens déjà envoyés cessent de fonctionner) ou vide-le (retour au mode fermé), puis redéploie. Les comptes déjà créés ne sont pas touchés.
+
+Le code est un secret partagé, pas une invitation nominative : toute personne qui a le lien peut créer un compte tant que le code n'a pas changé. La création de compte est limitée en débit par adresse, comme la connexion.
 
 ## Mises à jour
 
@@ -135,6 +151,7 @@ Vérifié sur le poste de développement, **sans Docker** (son moteur n'a pas pu
 
 - le fichier compose est valide et ses variables se résolvent (`docker compose config`) ;
 - les étapes des deux Dockerfiles, rejouées à la main : installation par espace de travail, builds, et contenu final — l'API démarre avec les seuls fichiers que l'image contient ;
-- l'API en mode production : 66 vérifications de bout en bout, inscriptions fermées (403), documentation masquée, adresse du client correcte derrière deux proxies.
+- l'API en mode production : 66 vérifications de bout en bout, inscriptions fermées (403), documentation masquée, adresse du client correcte derrière deux proxies ;
+- les trois modes d'inscription, sur l'API et dans la page : fermé (403, page « Les inscriptions sont fermées »), sur invitation (refus sans code ou avec un mauvais code, compte créé avec le bon, code rempli par le lien), ouvert.
 
 Non vérifié : la construction réelle des images, la configuration nginx (relue, jamais exécutée), et l'émission du certificat par Traefik. Le premier déploiement est donc le vrai test : en cas d'erreur, les logs de build de Dokploy diront où.

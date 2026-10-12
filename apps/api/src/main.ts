@@ -35,6 +35,8 @@ async function bootstrap() {
 
   await app.listen(config.port);
   Logger.log(`API prête sur http://localhost:${config.port}/api${config.apiDocs ? ' — documentation : /api/docs' : ''}`, 'Bootstrap');
-  if (config.isProd && config.allowSignup) Logger.warn('Les inscriptions sont ouvertes : ALLOW_SIGNUP=false les ferme une fois tes comptes créés.', 'Bootstrap');
+  if (config.isProd && config.signupMode === 'open') {
+    Logger.warn('Les inscriptions sont ouvertes à tous : ALLOW_SIGNUP=false les ferme, SIGNUP_CODE les réserve aux invités.', 'Bootstrap');
+  }
 }
 await bootstrap();

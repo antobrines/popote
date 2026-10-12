@@ -23,6 +23,9 @@ export class OfflineError extends Error {
   }
 }
 
+/** Création de compte sur cette installation : ouverte, sur invitation (code) ou fermée. */
+export type SignupMode = 'open' | 'invite' | 'closed';
+
 interface AuthResponse {
   accessToken: string;
   expiresIn: number;
@@ -121,13 +124,18 @@ export class Api {
     return this.parse<T>(response);
   }
 
-  /** Les inscriptions sont-elles ouvertes sur cette installation ? (Oui par défaut si le serveur ne répond pas.) */
-  async signupOpen(): Promise<boolean> {
+  /**
+   * Comment crée-t-on un compte sur cette installation ? Si le serveur ne répond pas, on suppose
+   * que c'est ouvert : le formulaire s'affiche, et c'est le serveur qui tranchera à l'envoi.
+   */
+  async signupMode(): Promise<SignupMode> {
     try {
       const response = await this.raw('GET', '/health');
-      return !response.ok || (await this.parse<{ signup?: boolean }>(response)).signup !== false;
+      if (!response.ok) return 'open';
+      const health = await this.parse<{ signup?: boolean; signupMode?: SignupMode }>(response);
+      return health.signupMode ?? (health.signup === false ? 'closed' : 'open');
     } catch {
-      return true;
+      return 'open';
     }
   }
 
@@ -141,8 +149,8 @@ export class Api {
     return result.user!;
   }
 
-  async register(email: string, password: string, displayName: string): Promise<UserJson> {
-    const result = await this.parse<AuthResponse>(await this.raw('POST', '/auth/register', { email, password, displayName }));
+  async register(email: string, password: string, displayName: string, inviteCode?: string): Promise<UserJson> {
+    const result = await this.parse<AuthResponse>(await this.raw('POST', '/auth/register', { email, password, displayName, inviteCode }));
     this.setSession(result.accessToken);
     return result.user!;
   }

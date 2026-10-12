@@ -47,7 +47,7 @@ npm run dev:web
 - Application : http://localhost:4200
 - API : http://localhost:3000/api — documentation OpenAPI : http://localhost:3000/api/docs
 
-Tu peux aussi créer ton propre compte depuis l'écran de connexion : le parcours d'accueil (taille → poids → objectif → activité → calories → aliments → repas → jours hors domicile → magasin → budget) se termine par « Créer ma semaine ».
+Tu peux aussi créer ton propre compte sur http://localhost:4200/inscription (lien « Créer un compte » de l'écran de connexion) : le parcours d'accueil (taille → poids → objectif → activité → calories → aliments → repas → jours hors domicile → magasin → budget) se termine par « Créer ma semaine ».
 
 ### Scripts
 
@@ -81,7 +81,8 @@ L'application est servie sur http://localhost:8080 (nginx sert la PWA et relaie 
 La marche à suivre complète est dans [DEPLOY.md](DEPLOY.md) : un service « Docker Compose » pointant sur [docker-compose.dokploy.yml](docker-compose.dokploy.yml), les variables de [dokploy.env.example](dokploy.env.example), et le domaine réglé dans l'onglet Domains (Traefik et Let's Encrypt). En production :
 
 - HTTPS obligatoire (PWA, caméra, cookie de session) : `COOKIE_SECURE=true` ;
-- `ALLOW_SIGNUP=false` ferme la création de comptes, `API_DOCS` masque la documentation de l'API ;
+- la création de comptes (`/inscription`) est fermée par défaut (`ALLOW_SIGNUP=false`) ; `SIGNUP_CODE` l'ouvre aux seules personnes qui ont le lien d'invitation `…/inscription?code=<code>` ;
+- `API_DOCS` masque la documentation de l'API ;
 - `TRUST_PROXY` indique le nombre de proxies devant l'API, pour que la limitation de débit voie l'adresse réelle de chaque client ;
 - au démarrage, le catalogue commun est aligné sur celui du code déployé : aucune commande à lancer après une mise à jour.
 

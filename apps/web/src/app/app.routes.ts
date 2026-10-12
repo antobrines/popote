@@ -25,6 +25,7 @@ const onboardingGuard: CanActivateFn = () => {
 
 export const routes: Routes = [
   { path: 'connexion', canActivate: [guestGuard], title: 'Connexion — ' + APP_NAME, loadComponent: () => import('./pages/auth.page').then((m) => m.AuthPage) },
+  { path: 'inscription', canActivate: [guestGuard], title: 'Créer un compte — ' + APP_NAME, loadComponent: () => import('./pages/signup.page').then((m) => m.SignupPage) },
   { path: 'bienvenue', canActivate: [onboardingGuard], title: 'Bienvenue — ' + APP_NAME, loadComponent: () => import('./pages/onboarding.page').then((m) => m.OnboardingPage) },
   {
     path: '',

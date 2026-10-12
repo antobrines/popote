@@ -27,7 +27,8 @@ export class HealthController {
   @Public()
   @Get()
   health() {
-    return { status: 'ok', time: new Date().toISOString(), signup: config.allowSignup };
+    // `signup` : un compte peut-il être créé ? `signupMode` dit comment (librement ou sur invitation).
+    return { status: 'ok', time: new Date().toISOString(), signup: config.signupMode !== 'closed', signupMode: config.signupMode };
   }
 }
 

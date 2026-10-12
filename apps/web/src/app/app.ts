@@ -119,5 +119,5 @@ export class App {
   );
 
   /** La barre d'onglets disparaît sur les écrans plein cadre (connexion, mode Courses, impression). */
-  protected readonly chrome = computed(() => !/^\/(connexion|bienvenue|courses\/magasin|programme\/imprimer|programme\/cuisine)/.test(this.url()));
+  protected readonly chrome = computed(() => !/^\/(connexion|inscription|bienvenue|courses\/magasin|programme\/imprimer|programme\/cuisine)/.test(this.url()));
 }
