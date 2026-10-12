@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { DAY_LABELS, SLOT_LABELS, groupByAisle, aisleLabel, ingredientLabel } from '@bouffe/core';
+import { DAY_LABELS, SLOT_LABELS, groupByAisle, aisleLabel, ingredientLabel, planTable } from '@bouffe/core';
 import { Store } from '../core/store';
 import { DayPipe, EuroPipe, Icon, NumPipe } from '../ui/ui';
 
@@ -27,6 +27,31 @@ import { DayPipe, EuroPipe, Icon, NumPipe } from '../ui/ui';
             {{ plan.averages.kcal | num }} kcal, {{ plan.averages.protein | num }} g
           </p>
         </header>
+
+        @if (table(); as t) {
+          <section class="overflow-x-auto" aria-label="La semaine en tableau">
+            <table class="w-full border-collapse text-left text-[0.8125rem] leading-snug">
+              <thead>
+                <tr>
+                  <th class="border-b-2 border-fg py-2 pr-3 font-bold">Jour</th>
+                  @for (column of t.columns; track column.slot) {
+                    <th class="border-b-2 border-fg py-2 pr-3 font-bold">{{ column.label }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of t.rows; track row.dayIndex) {
+                  <tr class="align-top">
+                    <th class="border-b border-line py-2 pr-3 font-semibold whitespace-nowrap">{{ row.day }}</th>
+                    @for (cell of row.cells; track $index) {
+                      <td class="border-b border-line py-2 pr-3">{{ cell }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
 
         @for (d of days(); track d.index) {
           <section class="print-day border-t border-line pt-4">
@@ -79,6 +104,12 @@ export class PrintPage {
   protected readonly store = inject(Store);
   protected readonly dayLabels = DAY_LABELS;
   protected readonly slotLabels = SLOT_LABELS;
+
+  /** La semaine en une page : une ligne par jour, une colonne par repas. */
+  protected readonly table = computed(() => {
+    const plan = this.store.plan();
+    return plan && this.store.foods().size > 0 ? planTable(plan, this.store.foods()) : null;
+  });
 
   protected readonly days = computed(() => {
     const foods = this.store.foods();

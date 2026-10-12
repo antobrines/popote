@@ -11,6 +11,7 @@ export * from './planner/solver.js';
 export * from './planner/generator.js';
 export * from './planner/analysis.js';
 export * from './planner/recipe.js';
+export * from './planner/compact.js';
 export * from './planner/targets.js';
 export * from './planner/review.js';
 export * from './planner/custom.js';

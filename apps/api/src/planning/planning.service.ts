@@ -61,6 +61,7 @@ export function toWeekPlan(doc: MealPlanDoc): WeekPlan {
     weekStart: o.weekStart,
     seed: o.seed,
     level: o.level,
+    style: o.style,
     target: o.target,
     structure: o.structure,
     days: o.days,
@@ -135,6 +136,9 @@ export class PlanningService {
         limitedFoods: prefs.limitedFoods ?? [],
         cookOnce: prefs.cookOnce === true,
         awayPrepAhead: prefs.awayPrepAhead === true,
+        // Une semaine existante garde son style (celles d'avant ce choix étaient « cuisinées ») ;
+        // une nouvelle semaine prend la préférence, « simple » par défaut.
+        style: overrides.plan ? (overrides.plan.style ?? 'cuisine') : (prefs.style ?? 'simple'),
         bannedSignatures: feedback.filter((f) => f.banned).map((f) => f.signature),
         bannedTemplates: [],
         favoriteSignatures: feedback.filter((f) => f.favorite).map((f) => f.signature),

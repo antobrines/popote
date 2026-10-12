@@ -8,6 +8,7 @@ import type {
   Food,
   HabitSuggestion,
   MealSlotKind,
+  MealStyle,
   MealTemplate,
   NutritionTarget,
   Nutrients,
@@ -36,6 +37,8 @@ export interface UserPreferences {
   limitedFoods?: string[];
   cookOnce?: boolean;
   awayPrepAhead?: boolean;
+  /** Style des repas à la maison ; `simple` par défaut. */
+  style?: MealStyle;
   trainingDays?: boolean[];
   trainingBonusKcal?: number;
   excludedFoods: string[];

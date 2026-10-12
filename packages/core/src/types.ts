@@ -118,6 +118,10 @@ export interface Food {
   offCategories: string[];
   /** Aliments interchangeables en magasin (ex. volaille maigre). */
   substitutionGroup?: string;
+  /** Précision ajoutée au nom quand le poids est celui du produit cru : « riz cru », « pâtes crues ». */
+  rawLabel?: string;
+  /** S'exprime en grammes dans une liste compacte, même s'il a une unité (« 140 g skyr », « 30 g whey »). */
+  byWeight?: boolean;
   /** Mesure ménagère affichée à côté des grammes (« ≈ 1 c. à café »). */
   measure?: { label: string; grams: number };
   /** Aliment personnalisé créé par l'utilisateur. */
@@ -151,11 +155,21 @@ export interface TemplateSlot {
   max?: number;
   step?: number;
   optional?: boolean;
+  /** Probabilité de garder un rôle facultatif (0–1 ; 0,6 par défaut). */
+  chance?: number;
+  /** `first` : prendre le premier aliment autorisé de la liste (les suivants ne servent que de repli). */
+  pick?: 'first';
   /** Le rôle n'est gardé que si un autre rôle a choisi l'un de ces aliments. */
   when?: { slot: string; in: string[] };
 }
 
 export type TemplateKind = 'assiette' | 'one-pot' | 'recette' | 'froid' | 'collation' | 'transportable';
+
+/**
+ * Style d'une semaine. `simple` : des assiettes sans recette (viande + féculent + laitage ou fruit),
+ * qui se lisent en une ligne. `cuisine` : des plats avec une recette.
+ */
+export type MealStyle = 'simple' | 'cuisine';
 
 export interface MealTemplate {
   id: string;
@@ -177,6 +191,8 @@ export interface MealTemplate {
   custom?: boolean;
   /** Repas à emporter qui se cuisine la veille (proposé seulement si l'utilisateur l'accepte). */
   prepAhead?: boolean;
+  /** Styles de semaine où ce modèle est proposé à la maison. Absent : `cuisine` seulement. */
+  styles?: MealStyle[];
 }
 
 // ───────────────────────────── Programme ─────────────────────────────
@@ -260,6 +276,8 @@ export interface WeekPlan {
   weekStart: string;
   seed: number;
   level: PrepLevel;
+  /** Style avec lequel la semaine a été générée (absent sur les anciennes semaines : `cuisine`). */
+  style?: MealStyle;
   target: NutritionTarget;
   structure: MealStructureEntry[];
   days: MealPlanDay[];
@@ -277,6 +295,8 @@ export interface PlannerPreferences {
   cookOnce?: boolean;
   /** Hors domicile, accepter des repas froids cuisinés la veille. */
   awayPrepAhead?: boolean;
+  /** Style des repas à la maison. Absent : `cuisine`. */
+  style?: MealStyle;
   bannedSignatures: string[];
   bannedTemplates: string[];
   favoriteSignatures: string[];

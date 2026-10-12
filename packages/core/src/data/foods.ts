@@ -47,6 +47,8 @@ interface FoodSeed {
   cooking?: CookingInstruction[];
   tags?: string[];
   group?: string;
+  rawLabel?: string;
+  byWeight?: boolean;
 }
 
 function food(s: FoodSeed): Food {
@@ -72,6 +74,8 @@ function food(s: FoodSeed): Food {
     keywords: s.keywords,
     offCategories: s.off ?? [],
     substitutionGroup: s.group,
+    rawLabel: s.rawLabel,
+    byWeight: s.byWeight,
   };
 }
 
@@ -235,6 +239,7 @@ export const SEED_FOODS: Food[] = [
     id: 'riz',
     name: 'Riz basmati',
     shortName: 'riz',
+    rawLabel: 'cru',
     category: 'feculent',
     aisle: 'feculents',
     per100: [350, 7.5, 77.5, 0.8, 1.4],
@@ -254,6 +259,7 @@ export const SEED_FOODS: Food[] = [
     id: 'pates',
     name: 'Pâtes',
     shortName: 'pâtes',
+    rawLabel: 'crues',
     category: 'feculent',
     aisle: 'feculents',
     per100: [355, 12.5, 71, 1.8, 3],
@@ -270,6 +276,7 @@ export const SEED_FOODS: Food[] = [
     id: 'pates-completes',
     name: 'Pâtes complètes',
     shortName: 'pâtes complètes',
+    rawLabel: 'crues',
     category: 'feculent',
     aisle: 'feculents',
     per100: [345, 13, 63, 2.5, 8],
@@ -286,6 +293,7 @@ export const SEED_FOODS: Food[] = [
     id: 'semoule',
     name: 'Semoule de couscous',
     shortName: 'semoule',
+    rawLabel: 'crue',
     category: 'feculent',
     aisle: 'feculents',
     per100: [355, 12, 72, 1.5, 4],
@@ -305,7 +313,8 @@ export const SEED_FOODS: Food[] = [
     category: 'feculent',
     aisle: 'feculents',
     per100: [80, 2, 16.5, 0.1, 2],
-    portion: [200, 600, 25],
+    rawLabel: 'crues',
+    portion: [200, 600, 50],
     cookedYield: 0.85,
     perishable: false,
     group: 'pommes-de-terre',
@@ -326,6 +335,7 @@ export const SEED_FOODS: Food[] = [
     aisle: 'feculents',
     per100: [250, 9.5, 43, 3.5, 7],
     piece: ['tranche de pain complet', 'tranches de pain complet', 35],
+    byWeight: true,
     portion: [35, 210, 35],
     portable: true,
     noCook: true,
@@ -376,6 +386,7 @@ export const SEED_FOODS: Food[] = [
     aisle: 'produits-laitiers',
     per100: [60, 10.5, 3.8, 0.2, 0],
     piece: ['pot de skyr', 'pots de skyr', 140],
+    byWeight: true,
     portion: [140, 280, 140],
     portable: true,
     noCook: true,
@@ -383,6 +394,21 @@ export const SEED_FOODS: Food[] = [
     packages: [pack('Pot 140 g', 140, 0.99), pack('Lot 4 × 140 g', 560, 3.19)],
     keywords: ['skyr nature', 'skyr'],
     off: ['en:skyrs', 'en:skyr'],
+  }),
+  food({
+    id: 'yaourt',
+    name: 'Yaourt nature',
+    shortName: 'yaourt',
+    category: 'laitier',
+    aisle: 'produits-laitiers',
+    per100: [46, 4, 2.7, 1.5, 0],
+    piece: ['yaourt', 'yaourts', 125],
+    portion: [125, 250, 125],
+    portable: true,
+    noCook: true,
+    packages: [pack('Lot 4 × 125 g', 500, 0.89), pack('Lot 12 × 125 g', 1500, 2.29)],
+    keywords: ['yaourt nature', 'yaourts nature', 'yaourt', 'yogourt nature'],
+    off: ['en:plain-yogurts', 'en:yogurts'],
   }),
   food({
     id: 'fromage-blanc',
@@ -605,7 +631,7 @@ export const SEED_FOODS: Food[] = [
     category: 'fruit',
     aisle: 'epicerie',
     per100: [55, 0.3, 12.5, 0.2, 1.7],
-    piece: ['pot de compote', 'pots de compote', 100],
+    piece: ['compote', 'compotes', 100],
     portion: [100, 200, 100],
     noCook: true,
     perishable: false,
@@ -736,6 +762,7 @@ export const SEED_FOODS: Food[] = [
     aisle: 'autres',
     per100: [380, 78, 7, 5, 0],
     piece: ['dose de whey', 'doses de whey', 30],
+    byWeight: true,
     portion: [30, 60, 30],
     portable: true,
     noCook: true,

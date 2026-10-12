@@ -100,7 +100,7 @@ const round1 = (value: number): number => Math.round(value * 10) / 10;
       <section class="card" aria-live="polite">
         <div class="flex items-baseline gap-2">
           <p class="num text-4xl font-bold tracking-tight" [class]="dishes().mainsHome < 14 ? 'text-warn' : ''">{{ dishes().mainsHome | num }}</p>
-          <p class="font-semibold">plats différents possibles</p>
+          <p class="font-semibold">{{ simpleStyle() ? 'assiettes différentes possibles' : 'plats différents possibles' }}</p>
         </div>
         <p class="num mt-1 text-sm text-muted">{{ dishes().snacksHome }} collations · {{ dishes().mainsAway }} repas à emporter · {{ dishes().snacksAway }} collations nomades</p>
         @if (dishes().mainsHomeFlavored > dishes().mainsHome) {
@@ -332,6 +332,7 @@ export class FoodPrefsPage implements OnDestroy {
   private readonly toasts = inject(Toasts);
 
   protected readonly categories = CATEGORIES;
+  protected readonly simpleStyle = computed(() => (this.store.user()?.preferences.style ?? 'simple') === 'simple');
   protected readonly ciqual = CIQUAL_SOURCE;
   protected readonly form = signal<FoodForm | null>(null);
   protected readonly scanning = signal(false);
@@ -369,6 +370,7 @@ export class FoodPrefsPage implements OnDestroy {
       excludedFoods: [...this.excluded()],
       excludedTags: [...this.tags()],
       bannedTemplates: [],
+      style: this.store.user()?.preferences.style ?? 'simple',
     }),
   );
 

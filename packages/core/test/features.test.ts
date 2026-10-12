@@ -14,6 +14,8 @@ import {
   baseSignature,
   buildCustomTemplate,
   buildShoppingList,
+  compactLabel,
+  compactMeal,
   cookOncePairs,
   countPossibleDishes,
   cyclingTargets,
@@ -25,6 +27,8 @@ import {
   ingredientLabel,
   mealAlternatives,
   optimizePackages,
+  planTable,
+  planTableText,
   replaceMeal,
   reviewWeek,
   swapMeals,
@@ -359,6 +363,167 @@ describe('recettes personnelles', () => {
     expect(buildCustomTemplate({ ...recipe, away: true }, foods).prepAhead).toBe(true);
     const cold = buildCustomTemplate({ ...recipe, away: true, ingredients: [{ foodId: 'poulet-roti-eminces', role: 'protein' }, { foodId: 'pain-complet', role: 'energy' }] }, foods);
     expect(cold.prepAhead).toBeUndefined();
+  });
+});
+
+describe('style simple : des assiettes sans recette', () => {
+  const simplePrefs = { ...DEMO_PREFS, style: 'simple' as const };
+  const simple = (seed: number, overrides: Partial<PlannerInput> = {}) => generateWeek(makeInput({ seed, prefs: simplePrefs, ...overrides }));
+  const mains = (plan: WeekPlan) => allMeals(plan).filter((m) => m.slot !== 'collation');
+  const food = (id: string) => foods.get(id)!;
+
+  it('ne tire que des assiettes simples à la maison, à la cible chaque jour', () => {
+    for (const seed of [201, 202, 203, 204, 205, 206]) {
+      const plan = simple(seed);
+      expect(plan.style).toBe('simple');
+      for (const meal of allMeals(plan)) expect(meal.templateId, meal.name).toMatch(/^simple-/);
+      expect(onTarget(plan), `graine ${seed}`).toBe(true);
+      for (const day of plan.days) expect(day.nutrition.protein).toBeGreaterThanOrEqual(172);
+      expect(plan.warnings.map((w) => w.code)).not.toContain('off-target');
+    }
+  });
+
+  it('garde une vraie portion de viande, un féculent, du beurre, et peu d’accompagnements', () => {
+    for (const seed of [207, 208, 209]) {
+      for (const meal of mains(simple(seed))) {
+        const keys = meal.items.map((i) => i.slotKey);
+        expect(keys.slice(0, 2)).toEqual(['protein', 'starch']);
+        expect(keys).toContain('fat');
+        expect(keys).not.toContain('seasoning');
+        expect(meal.items[0]!.grams).toBeGreaterThanOrEqual(150);
+        expect(meal.items.length).toBeLessThanOrEqual(7);
+        // Du beurre, pas d'huile, tant que le beurre n'est pas refusé.
+        expect(meal.items.find((i) => i.slotKey === 'fat')!.foodId).toBe('beurre');
+      }
+    }
+  });
+
+  it('met des œufs le soir seulement : trois avec des pommes de terre, deux sinon', () => {
+    let withEggs = 0;
+    for (const seed of [210, 211, 212, 213]) {
+      for (const meal of mains(simple(seed))) {
+        const eggs = meal.items.find((i) => i.foodId === 'oeufs');
+        if (!eggs) continue;
+        withEggs++;
+        expect(meal.slot).toBe('diner');
+        const starch = meal.items.find((i) => i.slotKey === 'starch')!.foodId;
+        expect(eggs.grams / food('oeufs').piece!.grams).toBe(starch === 'pommes-de-terre' ? 3 : 2);
+      }
+    }
+    expect(withEggs).toBeGreaterThan(6);
+  });
+
+  it('écrit chaque ingrédient de façon compacte', () => {
+    expect(compactLabel(food('poulet'), 250)).toBe('250 g poulet');
+    expect(compactLabel(food('riz'), 100)).toBe('100 g riz cru');
+    expect(compactLabel(food('pates'), 120)).toBe('120 g pâtes crues');
+    expect(compactLabel(food('semoule'), 100)).toBe('100 g semoule crue');
+    expect(compactLabel(food('pommes-de-terre'), 300)).toBe('300 g pommes de terre crues');
+    expect(compactLabel(food('oeufs'), 165)).toBe('3 œufs');
+    expect(compactLabel(food('compote'), 100)).toBe('1 compote');
+    expect(compactLabel(food('yaourt'), 125)).toBe('1 yaourt');
+    expect(compactLabel(food('banane'), 120)).toBe('1 banane');
+    expect(compactLabel(food('barre-proteinee'), 55)).toBe('1 barre protéinée');
+    // Ce qui se dose plutôt qu'il ne se compte reste en grammes.
+    expect(compactLabel(food('skyr'), 140)).toBe('140 g skyr');
+    expect(compactLabel(food('whey'), 30)).toBe('30 g whey');
+    expect(compactLabel(food('pain-complet'), 70)).toBe('70 g pain complet');
+    expect(compactLabel(food('fromage-blanc'), 250)).toBe('250 g fromage blanc');
+    expect(compactLabel(food('lait'), 250)).toBe('250 ml lait');
+  });
+
+  it('écrit un repas sur une ligne et la semaine en tableau Jour / Midi / Collation / Soir', () => {
+    const plan = simple(214);
+    const lunch = plan.days[0]!.meals[0]!;
+    const line = compactMeal(lunch, foods);
+    expect(line.split(' + ')).toHaveLength(lunch.items.length);
+    expect(line).toMatch(/^\d+ g [^+]+ \+ \d+ g [^+]+ (cru|crue|crues) \+ /);
+
+    const table = planTable(plan, foods);
+    expect(table.columns.map((c) => c.label)).toEqual(['Midi', 'Collation', 'Soir']);
+    expect(table.rows.map((r) => r.day)).toEqual(['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']);
+
+    const lines = planTableText(plan, foods).split('\n');
+    expect(lines[0]).toBe('Jour\tMidi\tCollation\tSoir');
+    expect(lines).toHaveLength(8);
+    for (const row of lines.slice(1)) {
+      const cells = row.split('\t');
+      expect(cells).toHaveLength(4);
+      for (const cell of cells.slice(1)) expect(cell).toContain(' + ');
+    }
+  });
+
+  it('note un repas libre ou sauté dans le tableau', () => {
+    const plan = structuredClone(simple(215));
+    plan.days[0]!.meals[0]!.free = { kcal: 1300, protein: 50, label: 'Restaurant' };
+    plan.days[0]!.meals[0]!.status = 'replaced';
+    plan.days[0]!.meals[1]!.status = 'skipped';
+    const row = planTable(plan, foods).rows[0]!;
+    // L'espace des milliers est une espace fine insécable en français.
+    expect(row.cells[0]).toMatch(/^Restaurant \(≈ 1\s300 kcal\)$/);
+    expect(row.cells[1]).toBe('—');
+  });
+
+  it('garde les repas à emporter les jours hors domicile', () => {
+    const away = ['full', 'none', 'none', 'none', 'none', 'none', 'none'] as PlannerInput['away'];
+    const plan = simple(216, { away });
+    for (const meal of plan.days[0]!.meals) {
+      expect(meal.context).toBe('away');
+      expect(meal.templateId).not.toMatch(/^simple-/);
+    }
+    for (const meal of plan.days[1]!.meals) expect(meal.templateId).toMatch(/^simple-/);
+    expect(onTarget(plan)).toBe(true);
+  });
+
+  it('ne mélange pas les styles : aucune assiette simple en style cuisiné, et l’inverse', () => {
+    for (const meal of allMeals(generateWeek(makeInput({ seed: 217 })))) expect(meal.templateId).not.toMatch(/^simple-/);
+    const cuisine = generateWeek(makeInput({ seed: 217, prefs: { ...DEMO_PREFS, style: 'cuisine' } }));
+    expect(cuisine.style).toBe('cuisine');
+    for (const meal of allMeals(cuisine)) expect(meal.templateId).not.toMatch(/^simple-/);
+  });
+
+  it('propose des remplacements du même style', () => {
+    const plan = simple(218);
+    const dinner = plan.days[2]!.meals[2]!;
+    const input = makeInput({ seed: 218, prefs: simplePrefs });
+    const options = mealAlternatives(input, plan, 2, dinner.id);
+    expect(options.length).toBeGreaterThan(0);
+    for (const option of options) expect(option.templateId).toMatch(/^simple-/);
+    const next = replaceMeal(input, plan, 2, dinner.id);
+    expect(next.days[2]!.meals[2]!.templateId).toMatch(/^simple-/);
+    expect(next.days[2]!.meals[2]!.signature).not.toBe(dinner.signature);
+  });
+
+  it('fonctionne avec « cuisiner une fois » et avec les jours d’entraînement', () => {
+    const plan = simple(219, { prefs: { ...simplePrefs, cookOnce: true }, training: { days: [true, false, true, false, true, false, false], bonusKcal: 200 } });
+    expect(cookOncePairs(plan).length).toBeGreaterThanOrEqual(2);
+    expect(onTarget(plan)).toBe(true);
+  });
+
+  it('sort aussi les recettes de l’utilisateur', () => {
+    const custom = buildCustomTemplate(
+      { name: 'Mon chili', meal: 'main', away: false, dessert: false, prepMin: 5, cookMin: 20, steps: ['Mijoter.'], ingredients: [{ foodId: 'steak-hache-5', role: 'protein' }, { foodId: 'riz', role: 'energy' }, { foodId: 'sauce-tomate', role: 'fixed', grams: 150 }] },
+      foods,
+    );
+    const plan = simple(220, { templates: [...SEED_TEMPLATES, custom] });
+    expect(allMeals(plan).some((m) => m.templateId === custom.id)).toBe(true);
+  });
+
+  it('se rabat sur tout le catalogue si aucun modèle simple n’est disponible', () => {
+    const plan = simple(221, { templates: SEED_TEMPLATES.filter((t) => !t.styles) });
+    expect(allMeals(plan)).toHaveLength(21);
+    expect(onTarget(plan)).toBe(true);
+  });
+
+  it('compte les plats possibles par style, sans changer le compte du style cuisiné', () => {
+    const base = { excludedFoods: [], excludedTags: ['legume', 'poisson'], bannedTemplates: [] };
+    const cuisine = countPossibleDishes(SEED_FOODS, SEED_TEMPLATES, base);
+    expect(cuisine).toEqual(countPossibleDishes(SEED_FOODS, SEED_TEMPLATES.filter((t) => !t.styles), base));
+    const simpleCount = countPossibleDishes(SEED_FOODS, SEED_TEMPLATES, { ...base, style: 'simple' });
+    // 5 viandes × 5 féculents, avec ou sans œufs.
+    expect(simpleCount.mainsHome).toBe(50);
+    expect(simpleCount.snacksHome).toBeGreaterThanOrEqual(3);
+    expect(simpleCount.mainsAway).toBe(cuisine.mainsAway);
   });
 });
 

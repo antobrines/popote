@@ -21,6 +21,7 @@ import type {
   Food,
   MealPlanDay,
   MealSlotKind,
+  MealStyle,
   MealTemplate,
   NutritionTarget,
   Nutrients,
@@ -94,6 +95,8 @@ export interface UserPreferences {
   cookOnce?: boolean;
   /** Hors domicile, accepter des repas froids cuisinés la veille. */
   awayPrepAhead?: boolean;
+  /** Style des repas à la maison : `simple` (assiettes sans recette, par défaut) ou `cuisine`. */
+  style?: MealStyle;
   /** Jours d'entraînement (lundi → dimanche) et calories ajoutées ces jours-là. */
   trainingDays?: boolean[];
   trainingBonusKcal?: number;
@@ -143,6 +146,7 @@ const UserSchema = top(
       limitedFoods: { type: [String], default: [] },
       cookOnce: { type: Boolean, default: false },
       awayPrepAhead: { type: Boolean, default: false },
+      style: { type: String, enum: ['simple', 'cuisine'], default: 'simple' },
       trainingDays: { type: [Boolean], default: () => Array(7).fill(false) },
       trainingBonusKcal: { type: Number, default: 200 },
       excludedFoods: { type: [String], default: [] },
@@ -251,6 +255,8 @@ const FoodSchema = top({
   measure: sub({ label: String, grams: Number }),
   custom: Boolean,
   productName: String,
+  rawLabel: String,
+  byWeight: Boolean,
   ciqual: sub({ code: String, label: String, energyComputed: Boolean, note: String }),
 });
 FoodSchema.index({ userId: 1, key: 1 }, { unique: true });
@@ -270,6 +276,8 @@ const RecipeSchema = top({
   userId: { type: ObjectId, ref: 'User', default: null, index: true },
   custom: Boolean,
   prepAhead: Boolean,
+  // Sans valeur par défaut : un tableau vide ne voudrait pas dire « style cuisiné ».
+  styles: { type: [String], default: undefined },
   source: Mixed,
   name: { type: String, required: true },
   kind: String,
@@ -286,6 +294,8 @@ const RecipeSchema = top({
       max: Number,
       step: Number,
       optional: Boolean,
+      chance: Number,
+      pick: String,
       when: sub({ slot: String, in: [String] }),
     }),
   ],
@@ -481,6 +491,8 @@ const MealPlanSchema = top({
   averages: nutrients,
   warnings: [sub({ code: String, severity: String, message: String, days: { type: [Number], default: undefined } })],
   generation: { type: Number, default: 1 },
+  /** Style de la semaine (`simple` ou `cuisine`) ; absent sur les semaines d'avant ce choix. */
+  style: String,
   /** Version du catalogue avec laquelle les quantités ont été calculées (voir `CATALOG_VERSION`). */
   catalogVersion: String,
 });

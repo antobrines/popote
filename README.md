@@ -32,7 +32,7 @@ Renseigne dans `apps/api/.env` au minimum `MONGODB_URI`, `JWT_ACCESS_SECRET` (`o
 npm run seed
 ```
 
-Le seed installe le catalogue (62 aliments, 53 modèles de repas) et crée le compte de démonstration (profil du cahier des charges : homme, 27 ans, 184 cm, 116 kg → 90 kg, 2 300 kcal, sans légumes, stocks d'exemple, première semaine générée). Identifiants : `DEMO_EMAIL` / `DEMO_PASSWORD` de `apps/api/.env`.
+Le seed installe le catalogue (63 aliments, 58 modèles de repas) et crée le compte de démonstration (profil du cahier des charges : homme, 27 ans, 184 cm, 116 kg → 90 kg, 2 300 kcal, sans légumes, stocks d'exemple, première semaine générée). Identifiants : `DEMO_EMAIL` / `DEMO_PASSWORD` de `apps/api/.env`.
 
 Dans deux terminaux :
 
@@ -53,12 +53,12 @@ Tu peux aussi créer ton propre compte depuis l'écran de connexion : le parcour
 
 | Commande | Effet |
 | --- | --- |
-| `npm test` | Tests unitaires des calculs critiques (111 tests, Vitest) |
+| `npm test` | Tests unitaires des calculs critiques (124 tests, Vitest) |
 | `npm run dev:api` / `npm run dev:web` | API et PWA en développement |
 | `npm run build` | Build de production (cœur, API, PWA avec service worker) |
 | `npm run seed` | Catalogue + compte de démonstration |
 | `npm run seed:reset -w @bouffe/api` | Montre le contenu du compte de démonstration ; ajouter `-- --confirm` pour l'effacer et le recréer |
-| `npm run smoke -w @bouffe/api` | Test de bout en bout de l'API en cours d'exécution (66 vérifications), sur un compte temporaire créé puis supprimé |
+| `npm run smoke -w @bouffe/api` | Test de bout en bout de l'API en cours d'exécution (69 vérifications), sur un compte temporaire créé puis supprimé |
 | `npm run test:cleanup -w @bouffe/api` | Liste les comptes de test restés en base après un test interrompu ; `-- --confirm` les supprime |
 | `npm run ciqual -w @bouffe/core` | Régénère les valeurs nutritionnelles du catalogue depuis la table Ciqual de l'Anses |
 
@@ -127,16 +127,18 @@ Le choix structurant : **toute la logique de calcul vit dans `@bouffe/core`**, p
 
 **Nutrition** (`nutrition.ts`) — Les totaux d'un repas ou d'une journée sont toujours dérivés des ingrédients (grammes × valeurs pour 100 g, poids cru). Beurre, huile, fromage et sauces sont des ingrédients comme les autres. Poids cru et poids cuit sont distingués par un rendement de cuisson par aliment.
 
-**Valeurs nutritionnelles** (`data/ciqual.ts`) — 52 des 62 aliments du catalogue portent les valeurs de la [table Ciqual 2020](https://ciqual.anses.fr/) de l'Anses (Licence Ouverte), à l'état cru quand l'aliment s'achète cru ; chaque aliment garde le code et le libellé de son aliment de référence, affichés dans sa fiche. Les protéines sont celles de l'étiquetage (azote × 6,25). Pour 9 aliments dont la table ne donne pas l'énergie (miel, amandes, pomme…), elle est calculée à partir des macronutriments avec les coefficients du règlement (UE) n° 1169/2011 ; l'import vérifie d'abord que ce calcul retrouve l'énergie publiée sur le reste de la table (écart médian 0,1 %). Les 10 aliments absents de la table (skyr, whey, boisson et barre protéinées, mélanges d'épices…) gardent une moyenne d'étiquettes, signalée comme telle. Le fichier est généré par `npm run ciqual -w @bouffe/core` et versionné : l'application ne télécharge rien. Quand le catalogue change (`CATALOG_VERSION`), les programmes en cours sont recalculés à la prochaine ouverture.
+**Valeurs nutritionnelles** (`data/ciqual.ts`) — 53 des 63 aliments du catalogue portent les valeurs de la [table Ciqual 2020](https://ciqual.anses.fr/) de l'Anses (Licence Ouverte), à l'état cru quand l'aliment s'achète cru ; chaque aliment garde le code et le libellé de son aliment de référence, affichés dans sa fiche. Les protéines sont celles de l'étiquetage (azote × 6,25). Pour 9 aliments dont la table ne donne pas l'énergie (miel, amandes, pomme…), elle est calculée à partir des macronutriments avec les coefficients du règlement (UE) n° 1169/2011 ; l'import vérifie d'abord que ce calcul retrouve l'énergie publiée sur le reste de la table (écart médian 0,1 %). Les 10 aliments absents de la table (skyr, whey, boisson et barre protéinées, mélanges d'épices…) gardent une moyenne d'étiquettes, signalée comme telle. Le fichier est généré par `npm run ciqual -w @bouffe/core` et versionné : l'application ne télécharge rien. Quand le catalogue change (`CATALOG_VERSION`), les programmes en cours sont recalculés à la prochaine ouverture.
 
 **Mes vrais produits** — Chacun peut remplacer ces moyennes par les valeurs de son produit (saisie de l'étiquette ou scan), ou ajouter un aliment : les programmes en cours sont recalculés. Un garde-fou signale une saisie dont les calories ne correspondent pas aux macronutriments.
+
+**Deux styles de semaine** — *Simple* (par défaut) : des assiettes sans recette — une viande, un féculent, du beurre, et selon le tirage des œufs le soir, du pain, un fromage, un laitage ou une compote — qui se lisent en une ligne : « 250 g poulet + 100 g riz cru + 10 g beurre + 140 g skyr + 1 compote ». La semaine s'affiche alors en tableau Jour / Midi / Collation / Soir, se copie telle quelle (texte tabulé, pour une note ou un tableur) et s'imprime ainsi. *Cuisiné* : des plats avec une recette (bolognaise, curry, gratin…). Le style se choisit à la génération ou dans le profil ; une semaine déjà générée garde le sien. Hors domicile, les repas à emporter sont les mêmes dans les deux styles, et tes recettes personnelles sortent dans les deux. L'écriture compacte est dans `planner/compact.ts`.
 
 **Génération des menus** (`planner/`) — Pas de repas codés en dur : des *modèles* décrivent des rôles (protéine, féculent, matière grasse, garniture, laitage, fruit) et leurs aliments candidats. Pour chaque repas, le moteur tire plusieurs candidats, résout leurs quantités, les note, garde le meilleur, puis équilibre la journée.
 
 - *Solveur* : système 2 × 2 (levier protéine, levier énergie) pour viser calories et protéines du repas, avec bornes et pas de portion ; puis ajustement fin de la journée jusqu'à la tolérance (±50 kcal par défaut).
 - *Note d'un candidat* : variété dans la semaine et par rapport à la semaine précédente, aliments appréciés, notes et favoris, stocks disponibles, réutilisation de produits déjà entamés, fibres, part de lipides, niveau de préparation (ultra rapide / normal / meal prep), équipement, budget.
 - *Contraintes dures* : aliments et catégories refusés (« sans légumes », « sans poisson »), repas interdits, repas transportables sans cuisine les jours hors domicile.
-- *Préférences par aliment* : « j'aime » (revient plus souvent), « rarement » (une fois par semaine au plus), « jamais ». L'écran *Mes aliments* affiche en direct le nombre de plats différents encore possibles (113 sans restriction avec le catalogue de départ, 354 en comptant les assaisonnements).
+- *Préférences par aliment* : « j'aime » (revient plus souvent), « rarement » (une fois par semaine au plus), « jamais ». L'écran *Mes aliments* affiche en direct le nombre de plats différents encore possibles dans ton style (en cuisiné : 113 sans restriction avec le catalogue de départ, 354 en comptant les assaisonnements ; en simple : jusqu'à 60 assiettes).
 - *Saveurs* : les plats simples (viande + féculent) se déclinent avec un assaisonnement compté comme un ingrédient (cajun, paprika fumé, curry, herbes de Provence…). Le même plat avec une autre épice reste le même plat pour la variété de la semaine.
 - *Cuisiner une fois, manger deux fois* (option) : le dîner est reconduit au déjeuner du lendemain quand le plat se garde bien ; le mode cuisine affiche alors les quantités des deux portions et ce qu'il faut mettre de côté.
 - *Jours d'entraînement* (option) : quelques centaines de kcal en plus ces jours-là, compensées les jours de repos ; la moyenne de la semaine ne change pas et aucun jour ne passe sous le plancher prudent.
@@ -282,9 +284,9 @@ Les secrets vivent dans des fichiers `.env` ignorés par git. Ne jamais les comm
 npm test
 ```
 
-111 tests couvrent les calculs critiques : nutrition, solveur, génération (cible respectée chaque jour sur plusieurs graines, aliments refusés jamais proposés, jours hors domicile, variété, semaine différente de la précédente), remplacements, intégrité du catalogue (chaque recette atteint la cible ; chaque aliment vient de la table Ciqual ou est signalé absent ; énergie cohérente avec les macronutriments), saveurs, cuisine en double, cadenas et échange, jours d'entraînement, repas libre, anti-gaspillage, recettes personnelles, bilan de la semaine, recettes et meal prep, conditionnements et prix, liste et stocks (zones de rangement, remise à zéro et annulation, formats d'ajout, poids d'un produit scanné), session de courses, correspondance des produits scannés, résolveurs de codes-barres, tendance du poids et garde-fous de la suggestion calorique.
+124 tests couvrent les calculs critiques : nutrition, solveur, génération (cible respectée chaque jour sur plusieurs graines, aliments refusés jamais proposés, jours hors domicile, variété, semaine différente de la précédente), remplacements, intégrité du catalogue (chaque recette atteint la cible ; chaque aliment vient de la table Ciqual ou est signalé absent ; énergie cohérente avec les macronutriments), style simple (assiettes sans recette à la cible chaque jour, écriture compacte, tableau de la semaine, remplacements du même style), saveurs, cuisine en double, cadenas et échange, jours d'entraînement, repas libre, anti-gaspillage, recettes personnelles, bilan de la semaine, recettes et meal prep, conditionnements et prix, liste et stocks (zones de rangement, remise à zéro et annulation, formats d'ajout, poids d'un produit scanné), session de courses, correspondance des produits scannés, résolveurs de codes-barres, tendance du poids et garde-fous de la suggestion calorique.
 
-`npm run smoke -w @bouffe/api` déroule 66 vérifications de bout en bout contre une API en cours d'exécution. Il crée un compte temporaire et le supprime toujours, même en cas d'erreur ; si le processus est tué en route, `npm run test:cleanup -w @bouffe/api` retrouve le compte orphelin.
+`npm run smoke -w @bouffe/api` déroule 69 vérifications de bout en bout contre une API en cours d'exécution. Il crée un compte temporaire et le supprime toujours, même en cas d'erreur ; si le processus est tué en route, `npm run test:cleanup -w @bouffe/api` retrouve le compte orphelin.
 
 ## Limites connues
 

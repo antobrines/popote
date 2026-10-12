@@ -59,6 +59,7 @@ export const CIQUAL_VALUES: Record<string, CiqualValue> = {
   chapelure: { code: '7500', label: 'Chapelure', per100: { kcal: 374, protein: 12.7, carbs: 70, fat: 3.8, fiber: 4.5 } },
   'flocons-avoine': { code: '9311', label: "Flocon d'avoine", per100: { kcal: 367, protein: 14.2, carbs: 57.9, fat: 6.5, fiber: 10.2 } },
   'fromage-blanc': { code: '19644', label: 'Fromage blanc nature, 0% MG', per100: { kcal: 49, protein: 7.8, carbs: 3.9, fat: 0, fiber: 0 } },
+  yaourt: { code: '19593', label: 'Yaourt, lait fermenté ou spécialité laitière, nature', per100: { kcal: 46, protein: 3.9, carbs: 2.7, fat: 1.5, fiber: 0 } },
   lait: { code: '19041', label: 'Lait demi-écrémé, UHT', per100: { kcal: 47, protein: 3.3, carbs: 4.8, fat: 1.6, fiber: 0 } },
   beurre: { code: '16400', label: 'Beurre à 82% MG, doux', per100: { kcal: 753, protein: 0.7, carbs: 0.9, fat: 82.9, fiber: 0 } },
   parmesan: { code: '12120', label: 'Parmesan', per100: { kcal: 406, protein: 30.5, carbs: 0, fat: 31, fiber: 0 } },

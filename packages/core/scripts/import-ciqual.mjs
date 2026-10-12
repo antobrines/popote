@@ -50,6 +50,7 @@ const MAPPING = {
   chapelure: { code: '7500' },
   'flocons-avoine': { code: '9311' },
   'fromage-blanc': { code: '19644' },
+  yaourt: { code: '19593' },
   lait: { code: '19041' },
   beurre: { code: '16400' },
   parmesan: { code: '12120' },

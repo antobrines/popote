@@ -1,6 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { type AwayMode, DAY_LABELS, type Meal, type MealPlanDay, type Nutrients, type PrepLevel, SLOT_LABELS, dayTargetKcal, formatGrams } from '@bouffe/core';
+import {
+  type AwayMode,
+  DAY_LABELS,
+  type Meal,
+  type MealPlanDay,
+  type MealStyle,
+  type Nutrients,
+  type PrepLevel,
+  SLOT_SHORT_LABELS,
+  compactMeal,
+  dayTargetKcal,
+  planTableText,
+} from '@bouffe/core';
 import { Api } from '../core/api';
 import { batchRoles } from '../core/batch';
 import type { PlanJson } from '../core/models';
@@ -16,6 +28,11 @@ interface HistoryItem {
   averages: Nutrients;
   meals: string[];
 }
+
+const STYLES: { value: MealStyle; label: string; hint: string }[] = [
+  { value: 'simple', label: 'Simple', hint: 'Viande, féculent, laitage ou fruit. Une ligne par repas, pas de recette.' },
+  { value: 'cuisine', label: 'Cuisiné', hint: 'Des plats avec une recette : bolognaise, curry, gratin…' },
+];
 
 const AWAY_OPTIONS: { value: AwayMode; label: string }[] = [
   { value: 'none', label: 'À la maison' },
@@ -37,7 +54,7 @@ const AWAY_OPTIONS: { value: AwayMode; label: string }[] = [
               <button type="button" role="tab" class="grid h-9 w-11 place-items-center rounded-full transition-colors" [class]="view() === 'day' ? 'bg-card shadow-sm' : 'text-muted'" [attr.aria-selected]="view() === 'day'" (click)="setView('day')" aria-label="Vue jour">
                 <app-icon name="list" [size]="18" />
               </button>
-              <button type="button" role="tab" class="grid h-9 w-11 place-items-center rounded-full transition-colors" [class]="view() === 'week' ? 'bg-card shadow-sm' : 'text-muted'" [attr.aria-selected]="view() === 'week'" (click)="setView('week')" aria-label="Vue semaine entière">
+              <button type="button" role="tab" class="grid h-9 w-11 place-items-center rounded-full transition-colors" [class]="view() === 'week' ? 'bg-card shadow-sm' : 'text-muted'" [attr.aria-selected]="view() === 'week'" (click)="setView('week')" aria-label="Tableau de la semaine">
                 <app-icon name="grid" [size]="18" />
               </button>
             </div>
@@ -52,17 +69,18 @@ const AWAY_OPTIONS: { value: AwayMode; label: string }[] = [
       @if (plan(); as p) {
         @if (view() === 'week') {
           <section class="space-y-2.5" aria-label="Semaine entière">
-            <div class="row">
-              <p class="text-sm text-muted" aria-live="polite">
-                {{ swapMode() ? (swapFirst() ? 'Touche le repas à mettre à la place.' : 'Touche le premier repas à échanger.') : 'Touche un repas pour le détail, le cadenas pour le garder.' }}
-              </p>
-              <button type="button" class="chip shrink-0" [class.on]="swapMode()" [attr.aria-pressed]="swapMode()" (click)="toggleSwap()"><app-icon name="swap" [size]="16" /> Échanger</button>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="chip" (click)="copyTable(p)"><app-icon name="list" [size]="16" /> Copier le tableau</button>
+              <button type="button" class="chip" [class.on]="swapMode()" [attr.aria-pressed]="swapMode()" (click)="toggleSwap()"><app-icon name="swap" [size]="16" /> Échanger</button>
             </div>
+            <p class="px-1 text-sm text-muted" aria-live="polite">
+              {{ swapMode() ? (swapFirst() ? 'Touche le repas à mettre à la place.' : 'Touche le premier repas à échanger.') : 'Touche un repas pour le détail, le cadenas pour le garder.' }}
+            </p>
             @for (d of p.days; track d.index) {
-              <div class="card !p-3" [class]="d.date === store.today() ? 'ring-2 ring-accent' : ''">
-                <div class="row mb-2 px-1">
-                  <p class="flex items-center gap-1.5 text-sm font-bold">
-                    {{ dayLabels[d.index] }} <span class="num font-normal text-muted">{{ d.date.slice(8) }}</span>
+              <div class="card overflow-hidden !p-0" [class]="d.date === store.today() ? 'ring-2 ring-accent' : ''">
+                <div class="row px-4 pt-3 pb-1.5">
+                  <p class="flex items-center gap-1.5 font-bold">
+                    {{ dayLabels[d.index] }} <span class="num text-sm font-normal text-muted">{{ d.date.slice(8) }}</span>
                     @if (d.training) {
                       <app-icon name="dumbbell" [size]="14" class="text-protein" />
                     }
@@ -72,34 +90,40 @@ const AWAY_OPTIONS: { value: AwayMode; label: string }[] = [
                   </p>
                   <p class="num text-xs text-muted">{{ d.nutrition.kcal | num }} kcal · {{ d.nutrition.protein | num }} g</p>
                 </div>
-                <div class="grid gap-1.5" [style.grid-template-columns]="'repeat(' + d.meals.length + ', minmax(0, 1fr))'">
+                <ul class="divide">
                   @for (meal of d.meals; track meal.id; let i = $index) {
-                    <div class="relative">
+                    <li class="flex items-stretch" [class]="rowClass(meal)">
                       <button
                         type="button"
-                        class="flex h-full min-h-[5.75rem] w-full flex-col justify-between rounded-2xl p-2.5 pb-2 text-left transition-colors"
-                        [class]="cellClass(meal)"
-                        [attr.aria-label]="slotLabels[meal.slot] + ' : ' + (meal.free ? meal.free.label : meal.name)"
+                        class="flex min-w-0 flex-1 items-baseline gap-3 py-2.5 pr-2 pl-4 text-left"
+                        [attr.aria-label]="shortLabels[meal.slot] + ' : ' + (lines().get(meal.id) ?? meal.name)"
                         (click)="tapCell(p, d.index, i, meal)"
                       >
-                        <span class="line-clamp-3 text-xs leading-snug font-semibold">{{ meal.free ? meal.free.label : meal.name }}</span>
-                        <span class="num mt-1 text-[0.6875rem] opacity-70">{{ (meal.free ? meal.free.kcal : meal.nutrition.kcal) | num }} kcal</span>
+                        <span class="w-[3.75rem] shrink-0 text-xs font-semibold opacity-60">{{ shortLabels[meal.slot] }}</span>
+                        <span class="min-w-0 flex-1">
+                          @if (p.style !== 'simple' && !meal.free) {
+                            <span class="block text-sm leading-snug font-semibold">{{ meal.name }}</span>
+                          }
+                          <span class="block leading-snug" [class]="p.style === 'simple' || meal.free ? 'text-[0.9375rem]' : 'text-[0.8125rem] opacity-70'">{{ lines().get(meal.id) }}</span>
+                        </span>
                       </button>
                       @if (meal.status === 'planned' && !swapMode()) {
                         <button
                           type="button"
-                          class="absolute right-1 bottom-1 grid size-7 place-items-center rounded-full transition-colors"
-                          [class]="meal.locked ? 'bg-fg text-bg' : 'text-faint'"
+                          class="grid w-11 shrink-0 place-items-center transition-colors"
+                          [class]="meal.locked ? 'text-fg' : 'text-faint'"
                           [attr.aria-label]="(meal.locked ? 'Ne plus garder ' : 'Garder ') + meal.name"
                           [attr.aria-pressed]="!!meal.locked"
                           (click)="toggleLock(p, meal)"
                         >
-                          <app-icon [name]="meal.locked ? 'lock' : 'unlock'" [size]="13" />
+                          <app-icon [name]="meal.locked ? 'lock' : 'unlock'" [size]="16" [stroke]="meal.locked ? 2.4 : 1.8" />
                         </button>
+                      } @else if (meal.status === 'eaten') {
+                        <span class="grid w-11 shrink-0 place-items-center text-accent" aria-label="Mangé"><app-icon name="check" [size]="16" [stroke]="2.4" /></span>
                       }
-                    </div>
+                    </li>
                   }
-                </div>
+                </ul>
               </div>
             }
             @if (lockedCount() > 0) {
@@ -259,6 +283,23 @@ const AWAY_OPTIONS: { value: AwayMode; label: string }[] = [
         <div class="space-y-5">
           <p class="text-muted">Semaine du {{ store.weekStart() | day }}</p>
           <div>
+            <p class="eyebrow mb-2">Style des repas</p>
+            <div class="grid grid-cols-2 gap-2">
+              @for (option of styles; track option.value) {
+                <button
+                  type="button"
+                  class="rounded-2xl bg-card px-4 py-3 text-left"
+                  [class]="style() === option.value ? 'ring-2 ring-accent' : ''"
+                  [attr.aria-pressed]="style() === option.value"
+                  (click)="style.set(option.value)"
+                >
+                  <span class="block font-semibold">{{ option.label }}</span>
+                  <span class="mt-0.5 block text-xs leading-snug text-muted">{{ option.hint }}</span>
+                </button>
+              }
+            </div>
+          </div>
+          <div>
             <p class="eyebrow mb-2">Jours hors domicile</p>
             <div class="space-y-1.5">
               @for (label of dayLabels; track label; let i = $index) {
@@ -336,7 +377,8 @@ export class PlanPage {
   readonly generer = input<string>();
 
   protected readonly dayLabels = DAY_LABELS;
-  protected readonly slotLabels = SLOT_LABELS;
+  protected readonly shortLabels = SLOT_SHORT_LABELS;
+  protected readonly styles = STYLES;
   protected readonly awayOptions = AWAY_OPTIONS;
   protected readonly levels: { value: PrepLevel; label: string }[] = [
     { value: 'ultra-rapide', label: 'Ultra rapide' },
@@ -355,6 +397,7 @@ export class PlanPage {
   protected readonly historyLoading = signal(false);
   protected readonly away = signal<AwayMode[]>(Array(7).fill('none'));
   protected readonly level = signal<PrepLevel>('normal');
+  protected readonly style = signal<MealStyle>('simple');
   protected readonly cookOnce = signal(false);
   protected readonly prepAhead = signal(false);
   protected readonly swapMode = signal(false);
@@ -363,6 +406,11 @@ export class PlanPage {
   private readonly weekKey = computed(() => this.plan()?.weekStart ?? this.store.week());
   protected readonly day = computed<MealPlanDay | null>(() => this.plan()?.days[this.selected()] ?? null);
   protected readonly roles = computed(() => batchRoles(this.plan()));
+  /** Chaque repas de la semaine sur une ligne : « 250 g poulet + 100 g riz cru + 10 g beurre ». */
+  protected readonly lines = computed(() => {
+    const foods = this.store.foods();
+    return new Map((this.plan()?.days ?? []).flatMap((d) => d.meals).map((meal) => [meal.id, compactMeal(meal, foods)]));
+  });
   protected readonly lockedCount = computed(() => (this.plan()?.days ?? []).flatMap((d) => d.meals).filter((m) => m.locked && m.status === 'planned').length);
   protected readonly actual = computed(() => {
     const d = this.day();
@@ -390,9 +438,9 @@ export class PlanPage {
 
   private readView(): 'day' | 'week' {
     try {
-      return localStorage.getItem('bouffe.planView') === 'week' ? 'week' : 'day';
+      return localStorage.getItem('bouffe.planView') === 'day' ? 'day' : 'week';
     } catch {
-      return 'day';
+      return 'week';
     }
   }
 
@@ -415,11 +463,20 @@ export class PlanPage {
     return meal.status === 'eaten' ? 'bg-accent' : meal.status === 'planned' ? 'bg-current opacity-25' : 'bg-warn';
   }
 
-  protected cellClass(meal: Meal): string {
+  protected rowClass(meal: Meal): string {
     if (this.swapFirst()?.id === meal.id) return 'bg-fg text-bg';
-    if (meal.status === 'eaten') return 'bg-accent-soft text-accent';
-    if (meal.status !== 'planned') return 'bg-warn-soft text-warn';
-    return 'bg-raised';
+    if (meal.status !== 'planned' && meal.status !== 'eaten') return 'bg-warn-soft';
+    return '';
+  }
+
+  /** Copie la semaine en tableau « Jour / Midi / Collation / Soir », prêt à coller. */
+  protected async copyTable(plan: PlanJson): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(planTableText(plan, this.store.foods()));
+      this.toasts.success('Tableau copié : colle-le dans une note, un message ou un tableur.');
+    } catch {
+      this.toasts.error('Copie impossible sur cet appareil : utilise « Partager ».');
+    }
   }
 
   protected awayLabel(mode: AwayMode): string {
@@ -484,6 +541,7 @@ export class PlanPage {
     const prefs = this.store.user()?.preferences;
     this.away.set(this.plan()?.days.map((d) => d.away) ?? (prefs?.awayDays.length === 7 ? prefs.awayDays : Array(7).fill('none')));
     this.level.set(this.plan()?.level ?? prefs?.level ?? 'normal');
+    this.style.set(prefs?.style ?? 'simple');
     this.cookOnce.set(!!prefs?.cookOnce);
     this.prepAhead.set(!!prefs?.awayPrepAhead);
     this.generateSheet.set(true);
@@ -496,12 +554,14 @@ export class PlanPage {
 
   protected async generate(): Promise<void> {
     const prefs = this.store.user()?.preferences;
-    // Ces deux choix sont des préférences durables : on les enregistre avant de générer.
-    if (!!prefs?.cookOnce !== this.cookOnce() || !!prefs?.awayPrepAhead !== this.prepAhead()) {
-      if (!(await this.store.updateMe({ preferences: { cookOnce: this.cookOnce(), awayPrepAhead: this.prepAhead() } }))) return;
+    // Ces choix sont des préférences durables : on les enregistre avant de générer.
+    if ((prefs?.style ?? 'simple') !== this.style() || !!prefs?.cookOnce !== this.cookOnce() || !!prefs?.awayPrepAhead !== this.prepAhead()) {
+      if (!(await this.store.updateMe({ preferences: { style: this.style(), cookOnce: this.cookOnce(), awayPrepAhead: this.prepAhead() } }))) return;
     }
     if (await this.store.generateWeek({ weekStart: this.store.weekStart(), away: this.away(), level: this.level() })) {
       this.generateSheet.set(false);
+      // On montre la semaine entière qui vient d'être écrite.
+      this.setView('week');
       this.toasts.success('Semaine générée, liste de courses prête.');
     }
   }
@@ -523,10 +583,7 @@ export class PlanPage {
     const lines: string[] = [`Ma semaine du ${plan.weekStart} — ${plan.target.kcal} kcal / ${plan.target.protein} g protéines par jour`, ''];
     for (const d of plan.days) {
       lines.push(`${DAY_LABELS[d.index]} — ${d.nutrition.kcal} kcal, ${d.nutrition.protein} g protéines`);
-      for (const meal of d.meals) {
-        const items = meal.items.map((i) => `${formatGrams(i.grams, foods.get(i.foodId)?.unit)} ${foods.get(i.foodId)?.shortName ?? i.foodId}`).join(', ');
-        lines.push(`  ${SLOT_LABELS[meal.slot]} : ${meal.name} (${items})`);
-      }
+      for (const meal of d.meals) lines.push(`  ${SLOT_SHORT_LABELS[meal.slot]} : ${compactMeal(meal, foods)}`);
       lines.push('');
     }
     const text = lines.join('\n');

@@ -89,6 +89,17 @@ st = (await call('POST', '/meal-plans/generate', { today })).json;
 ok('generation semaine en cours', st.plan?.days?.length === 7, st.plan?.days?.map((d) => d.nutrition.kcal).join(' '));
 st = (await call('GET', `/state?today=${today}&catalog=1`)).json;
 ok('state', !!st.plan && st.foods?.length > 50, `aliments=${st.foods?.length} modeles=${st.templates?.length} listes=${st.shoppingLists?.length} stocks=${st.inventory?.length} pesees=${st.weights?.length}`);
+// Style « simple » par defaut : des assiettes sans recette, et la semaine en tableau.
+const shared = await import('@bouffe/core');
+const homeMeals = st.plan.days.flatMap((d) => d.meals).filter((m) => m.context === 'home');
+const TAB = String.fromCharCode(9);
+const tableau = shared.planTableText(st.plan, shared.indexFoods(st.foods)).split(String.fromCharCode(10));
+ok(
+  'style simple par defaut',
+  st.user.preferences.style === 'simple' && st.plan.style === 'simple' && homeMeals.length === 21 && homeMeals.every((m) => m.templateId.startsWith('simple-')) && tableau[0] === ['Jour', 'Midi', 'Collation', 'Soir'].join(TAB) && tableau.length === 8,
+  tableau[1].split(TAB).join(' | ').slice(0, 170),
+);
+ok('yaourt au catalogue (valeurs Ciqual)', st.foods.find((f) => f.id === 'yaourt')?.ciqual?.code === '19593' && st.foods.find((f) => f.id === 'riz')?.rawLabel === 'cru');
 ok('profil', st.user.profile.startWeightKg === 116 && st.weightSummary.currentKg === 116, `reste=${st.weightSummary.remainingKg} kg`);
 console.log('   suggestion:', st.calorieSuggestion.kind, '-', st.calorieSuggestion.reason.slice(0, 80));
 console.log('   integrations:', st.integrations.retail.map((r) => `${r.id}:${r.available}`).join(' '), '|', st.integrations.health.map((r) => `${r.id}:${r.available}`).join(' '));
@@ -220,9 +231,13 @@ ok('produit scanne memorise avec son prix', known.product?.price === 4.79, `${kn
 ok('liste cloturee', fin.state.shoppingLists.find((l) => l.id === openList.id).status === 'done');
 
 // ── Nouveautés : cadenas, échange, repas libre, recettes et produits personnels, entraînement ──
-st = (await call('PUT', '/me', { today, preferences: { level: 'normal', cookOnce: true, awayPrepAhead: true, trainingDays: [true, false, true, false, true, false, false], trainingBonusKcal: 200 } })).json;
+st = (await call('PUT', '/me', { today, preferences: { style: 'cuisine', level: 'normal', cookOnce: true, awayPrepAhead: true, trainingDays: [true, false, true, false, true, false, false], trainingBonusKcal: 200 } })).json;
 st = (await call('POST', '/meal-plans/generate', { today, weekStart: nextMonday, away: Array(7).fill('none') })).json;
 let np = st.nextPlan;
+ok(
+  'style cuisine : des plats avec recette, la semaine deja generee garde le sien',
+  st.user.preferences.style === 'cuisine' && np.style === 'cuisine' && np.days.flatMap((d) => d.meals).every((m) => !m.templateId.startsWith('simple-')) && st.plan.style === 'simple',
+);
 const dayKcal = (d) => (d.baseKcal ?? np.target.kcal) + (d.spreadKcal ?? 0);
 ok(
   "jours d'entrainement : cible propre a chaque jour",

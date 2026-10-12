@@ -14,6 +14,7 @@ import type {
   MealItem,
   MealPlanDay,
   MealSlotKind,
+  MealStyle,
   MealTemplate,
   NutritionTarget,
   Nutrients,
@@ -230,8 +231,8 @@ function instantiate(ctx: Context, template: MealTemplate, context: MealContext,
       if (slot.optional) continue;
       return null;
     }
-    if (slot.optional && rng.next() > 0.6) continue;
-    const food = rng.weighted(candidates, (f) => foodWeight(ctx, f, slot.scaling, dayFoods));
+    if (slot.optional && rng.next() > (slot.chance ?? 0.6)) continue;
+    const food = slot.pick === 'first' ? candidates[0]! : rng.weighted(candidates, (f) => foodWeight(ctx, f, slot.scaling, dayFoods));
     items.push(itemFromSlot(slot, food));
   }
   return items;
@@ -371,9 +372,19 @@ function buildMeal(ctx: Context, template: MealTemplate, items: MealItem[], req:
   };
 }
 
+/**
+ * Un modèle convient-il au style de la semaine ? Le style ne joue qu'à la maison : hors domicile,
+ * tous les repas à emporter restent proposés. Les recettes de l'utilisateur sortent dans les deux styles.
+ */
+export function matchesStyle(template: Pick<MealTemplate, 'styles' | 'custom'>, style: MealStyle | undefined, context: MealContext): boolean {
+  if (context !== 'home' || template.custom) return true;
+  const styles: MealStyle[] = template.styles?.length ? template.styles : ['cuisine'];
+  return styles.includes(style ?? 'cuisine');
+}
+
 function eligibleTemplates(ctx: Context, slot: MealSlotKind, context: MealContext): MealTemplate[] {
   const { prefs } = ctx.input;
-  return ctx.input.templates.filter(
+  const usable = ctx.input.templates.filter(
     (t) =>
       t.slots.includes(slot) &&
       (t.context === 'any' || t.context === context) &&
@@ -381,6 +392,9 @@ function eligibleTemplates(ctx: Context, slot: MealSlotKind, context: MealContex
       (!t.prepAhead || prefs.awayPrepAhead === true) &&
       !prefs.bannedTemplates.includes(t.id),
   );
+  const styled = usable.filter((t) => matchesStyle(t, prefs.style, context));
+  // Un catalogue sans modèle pour ce style (base pas encore à jour) ne doit pas bloquer la génération.
+  return styled.length > 0 ? styled : usable;
 }
 
 /** Retourne les meilleurs candidats (signatures distinctes), du meilleur au moins bon. */
@@ -604,6 +618,7 @@ export function generateWeek(input: PlannerInput): WeekPlan {
     weekStart: input.weekStart,
     seed: input.seed,
     level: prefs.level,
+    style: prefs.style ?? 'cuisine',
     target: input.target,
     structure: input.structure,
     days,
@@ -1051,7 +1066,7 @@ export interface DishCount {
 export function countPossibleDishes(
   foods: Food[],
   templates: MealTemplate[],
-  prefs: Pick<PlannerPreferences, 'excludedFoods' | 'excludedTags' | 'bannedTemplates'> & Pick<Partial<PlannerPreferences>, 'awayPrepAhead'>,
+  prefs: Pick<PlannerPreferences, 'excludedFoods' | 'excludedTags' | 'bannedTemplates'> & Pick<Partial<PlannerPreferences>, 'awayPrepAhead' | 'style'>,
 ): DishCount {
   const index = indexFoods(foods);
   const allowed = new Set(foods.filter((f) => isAllowed(f, { prefs: prefs as PlannerPreferences })).map((f) => f.id));
@@ -1090,23 +1105,25 @@ export function countPossibleDishes(
     return found;
   };
 
-  const count = (slot: MealSlotKind, context: MealContext, withFlavors = false): number => {
+  const count = (slots: MealSlotKind[], context: MealContext, withFlavors = false): number => {
     const all = new Set<string>();
     for (const template of templates) {
-      if (!template.slots.includes(slot) || prefs.bannedTemplates.includes(template.id)) continue;
+      if (!slots.some((slot) => template.slots.includes(slot)) || prefs.bannedTemplates.includes(template.id)) continue;
       if (template.context !== 'any' && template.context !== context) continue;
       if (template.prepAhead && prefs.awayPrepAhead !== true) continue;
+      if (!matchesStyle(template, prefs.style, context)) continue;
       for (const dish of dishes(template, context, withFlavors)) all.add(dish);
     }
     return all.size;
   };
 
+  const mains: MealSlotKind[] = ['dejeuner', 'diner'];
   return {
-    mainsHome: count('dejeuner', 'home'),
-    mainsHomeFlavored: count('dejeuner', 'home', true),
-    snacksHome: count('collation', 'home'),
-    mainsAway: count('dejeuner', 'away'),
-    snacksAway: count('collation', 'away'),
+    mainsHome: count(mains, 'home'),
+    mainsHomeFlavored: count(mains, 'home', true),
+    snacksHome: count(['collation'], 'home'),
+    mainsAway: count(mains, 'away'),
+    snacksAway: count(['collation'], 'away'),
   };
 }
 

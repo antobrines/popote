@@ -18,6 +18,15 @@ const NUTS: TemplateSlot = { key: 'nuts', foods: ['amandes', 'noix'], scaling: '
 
 const DESSERT_STEPS = ['Dessert : {dairy}.', 'Fruit : {fruit}.'];
 
+// Style « simple ».
+const SIMPLE_MEATS = ['poulet', 'steak-hache-5', 'dinde', 'rumsteck', 'haut-de-cuisse-poulet'];
+const SIMPLE_STARCHES = ['riz', 'pates', 'pommes-de-terre', 'semoule', 'pates-completes'];
+/** Une vraie portion de viande, même quand œufs et laitages apportent déjà des protéines. */
+const SIMPLE_MEAT_MIN = 150;
+/** Du beurre ; de l'huile d'olive seulement si le beurre est refusé. */
+const SIMPLE_FAT: TemplateSlot = { key: 'fat', foods: ['beurre', 'huile-olive'], scaling: 'fixed', grams: 10, pick: 'first' };
+const SIMPLE_FRUIT: TemplateSlot = { key: 'fruit', foods: ['banane', 'pomme', 'poire', 'clementine', 'kiwi'], scaling: 'fixed', pieces: 1 };
+
 /** Assaisonnements interchangeables : même plat, autre saveur, quasiment aucune calorie. */
 const SEASONINGS = ['epices-cajun', 'paprika-fume', 'herbes-provence', 'epices-tex-mex', 'ail-persil', 'epices-tandoori', 'curry-poudre', 'jus-citron'];
 const SEASONING_STEP = 'Assaisonner avec {seasoning}, du sel et du poivre.';
@@ -1397,5 +1406,125 @@ export const SEED_TEMPLATES: MealTemplate[] = [
     ],
     batchFriendly: true,
     weight: 0.7,
+  },
+  // ───────────── Style « simple » : des assiettes sans recette, qui se lisent en une ligne ─────────────
+  // Viande + féculent + beurre, avec selon le tirage un fromage, du pain, un laitage, une compote.
+  {
+    id: 'simple-assiette',
+    name: '{protein} & {starch}',
+    kind: 'assiette',
+    slots: ['dejeuner', 'diner'],
+    context: 'home',
+    styles: ['simple'],
+    items: [
+      { key: 'protein', foods: [...SIMPLE_MEATS, 'saumon', 'poisson-blanc'], scaling: 'protein', min: SIMPLE_MEAT_MIN },
+      { key: 'starch', foods: SIMPLE_STARCHES, scaling: 'energy' },
+      { key: 'cheese', foods: ['parmesan', 'emmental'], scaling: 'fixed', grams: 30, optional: true, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
+      { key: 'bread', foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pommes-de-terre'] } },
+      SIMPLE_FAT,
+      { key: 'dairy', foods: ['skyr', 'yaourt', 'fromage-blanc'], scaling: 'fixed', pieces: 1, grams: 150, optional: true, chance: 0.45 },
+      { key: 'fruit', foods: ['compote', 'pomme', 'poire', 'clementine'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.85, pick: 'first' },
+    ],
+    methods: ['poele', 'air-fryer', 'rice-cooker', 'casserole'],
+    levels: ['ultra-rapide', 'normal', 'meal-prep'],
+    prepMin: 5,
+    cookMin: 0,
+    steps: ['{starch:cook}', '{protein:cook}', 'Ajouter {fat} sur le plat chaud.', 'Parsemer de {cheese}.', 'Servir avec {bread}.', 'Dessert : {dairy}.', 'Fruit : {fruit}.'],
+    batchFriendly: true,
+    weight: 1.2,
+  },
+  {
+    id: 'simple-assiette-oeufs',
+    name: '{protein}, {starch} & œufs',
+    kind: 'assiette',
+    slots: ['diner'],
+    context: 'home',
+    styles: ['simple'],
+    items: [
+      { key: 'protein', foods: SIMPLE_MEATS, scaling: 'protein', min: SIMPLE_MEAT_MIN },
+      { key: 'starch', foods: SIMPLE_STARCHES, scaling: 'energy' },
+      // Trois œufs avec des pommes de terre, deux avec un féculent sec, plus nourrissant.
+      { key: 'eggs3', foods: ['oeufs'], scaling: 'fixed', pieces: 3, when: { slot: 'starch', in: ['pommes-de-terre'] } },
+      { key: 'eggs', foods: ['oeufs'], scaling: 'fixed', pieces: 2, when: { slot: 'starch', in: ['riz', 'pates', 'semoule', 'pates-completes'] } },
+      { key: 'cheese', foods: ['emmental', 'parmesan'], scaling: 'fixed', grams: 30, optional: true, chance: 0.4, when: { slot: 'starch', in: ['pates', 'pates-completes'] } },
+      { key: 'bread', foods: ['pain-complet'], scaling: 'fixed', pieces: 2, optional: true, chance: 0.3 },
+      SIMPLE_FAT,
+      { key: 'dairy', foods: ['yaourt', 'skyr'], scaling: 'fixed', pieces: 1, optional: true, chance: 0.4 },
+    ],
+    methods: ['poele', 'air-fryer', 'rice-cooker', 'casserole'],
+    levels: ['ultra-rapide', 'normal', 'meal-prep'],
+    prepMin: 5,
+    cookMin: 0,
+    steps: [
+      '{starch:cook}',
+      '{protein:cook}',
+      'Cuire {eggs} au plat ou brouillés, 3 à 4 min à la poêle.',
+      'Cuire {eggs3} au plat ou brouillés, 3 à 4 min à la poêle.',
+      'Ajouter {fat} sur le plat chaud.',
+      'Parsemer de {cheese}.',
+      'Servir avec {bread}.',
+      'Dessert : {dairy}.',
+    ],
+    batchFriendly: false,
+    weight: 1.5,
+  },
+  {
+    id: 'simple-collation-laitage',
+    name: '{dairy}, {fruit} & {nuts}',
+    kind: 'collation',
+    slots: ['collation', 'petit-dejeuner'],
+    context: 'home',
+    styles: ['simple'],
+    items: [{ key: 'dairy', foods: ['fromage-blanc', 'skyr'], scaling: 'protein' }, SIMPLE_FRUIT, NUTS],
+    methods: ['aucune'],
+    levels: ['ultra-rapide', 'normal', 'meal-prep'],
+    prepMin: 2,
+    cookMin: 0,
+    steps: ['Dans un bol : {dairy}.', 'Avec {fruit} et {nuts}.'],
+    batchFriendly: false,
+    weight: 1.5,
+  },
+  {
+    id: 'simple-collation-whey',
+    name: 'Whey, {fruit} & {nuts}',
+    kind: 'collation',
+    slots: ['collation', 'petit-dejeuner'],
+    context: 'home',
+    styles: ['simple'],
+    items: [
+      { key: 'whey', foods: ['whey'], scaling: 'fixed', pieces: 1 },
+      SIMPLE_FRUIT,
+      { key: 'compote', foods: ['compote'], scaling: 'fixed', pieces: 1, optional: true },
+      NUTS,
+    ],
+    methods: ['aucune'],
+    levels: ['ultra-rapide', 'normal', 'meal-prep'],
+    prepMin: 2,
+    cookMin: 0,
+    steps: ["Mélanger {whey} avec 300 ml d'eau dans un shaker.", 'Avec {fruit} et {nuts}.', 'En plus : {compote}.'],
+    batchFriendly: false,
+    weight: 0.8,
+  },
+  {
+    id: 'simple-collation-barre',
+    name: 'Barre protéinée, {fruit} & {nuts}',
+    kind: 'collation',
+    slots: ['collation', 'petit-dejeuner'],
+    context: 'home',
+    styles: ['simple'],
+    items: [
+      { key: 'bar', foods: ['barre-proteinee'], scaling: 'fixed', pieces: 1 },
+      SIMPLE_FRUIT,
+      { key: 'compote', foods: ['compote'], scaling: 'fixed', pieces: 1, optional: true },
+      { key: 'whey', foods: ['whey'], scaling: 'fixed', pieces: 1, optional: true },
+      NUTS,
+    ],
+    methods: ['aucune'],
+    levels: ['ultra-rapide', 'normal', 'meal-prep'],
+    prepMin: 1,
+    cookMin: 0,
+    steps: ['{bar}, {fruit} et {nuts}.', 'En plus : {compote}.', "Avec {whey} dans 300 ml d'eau."],
+    batchFriendly: false,
+    weight: 0.5,
   },
 ];

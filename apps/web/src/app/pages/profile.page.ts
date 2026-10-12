@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
-import { DAY_LABELS, type MealSlotKind, PREP_MODE_LABELS, type PrepLevel, type PrepMode, type ShoppingStrategy, calorieFloor, cyclingTargets } from '@bouffe/core';
+import { DAY_LABELS, type MealSlotKind, PREP_MODE_LABELS, type PrepLevel, type PrepMode, type MealStyle, type ShoppingStrategy, calorieFloor, cyclingTargets } from '@bouffe/core';
 import { Api } from '../core/api';
 import type { MealFeedback, ProviderStatus } from '../core/models';
 import { Store } from '../core/store';
@@ -48,6 +48,23 @@ const EQUIPMENT: PrepMode[] = ['air-fryer', 'poele', 'four', 'rice-cooker', 'cas
 
         <section class="card space-y-5">
           <h2 class="eyebrow">Mes repas</h2>
+          <div>
+            <p class="label">Style des repas</p>
+            <div class="grid grid-cols-2 gap-2">
+              @for (option of styles; track option.value) {
+                <button
+                  type="button"
+                  class="rounded-2xl bg-raised px-4 py-3 text-left"
+                  [class]="(u.preferences.style ?? 'simple') === option.value ? 'ring-2 ring-accent' : ''"
+                  [attr.aria-pressed]="(u.preferences.style ?? 'simple') === option.value"
+                  (click)="patch({ style: option.value })"
+                >
+                  <span class="block font-semibold">{{ option.label }}</span>
+                  <span class="mt-0.5 block text-xs leading-snug text-muted">{{ option.hint }}</span>
+                </button>
+              }
+            </div>
+          </div>
           <div>
             <p class="label">Repas de la journée</p>
             <div class="flex flex-wrap gap-2">
@@ -305,6 +322,10 @@ export class ProfilePage {
     { value: 'dejeuner', label: 'Déjeuner' },
     { value: 'collation', label: 'Collation' },
     { value: 'diner', label: 'Dîner' },
+  ];
+  protected readonly styles: { value: MealStyle; label: string; hint: string }[] = [
+    { value: 'simple', label: 'Simple', hint: 'Viande, féculent, laitage ou fruit. Une ligne par repas.' },
+    { value: 'cuisine', label: 'Cuisiné', hint: 'Des plats avec une recette.' },
   ];
   protected readonly levels: { value: PrepLevel; label: string }[] = [
     { value: 'ultra-rapide', label: 'Ultra rapide' },

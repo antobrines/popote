@@ -134,6 +134,11 @@ export class PreferencesDto {
   @IsBoolean()
   awayPrepAhead?: boolean;
 
+  /** Style des repas à la maison : `simple` (assiettes sans recette) ou `cuisine` (plats avec recette). */
+  @IsOptional()
+  @IsIn(['simple', 'cuisine'])
+  style?: 'simple' | 'cuisine';
+
   /** Jours d'entraînement, du lundi au dimanche. */
   @IsOptional()
   @IsArray()
